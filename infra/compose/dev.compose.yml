@@ -3,6 +3,10 @@
 # =============================================================================
 
 services:
+  nginx:
+    volumes:
+      - ../nginx/nginx.dev.conf:/etc/nginx/nginx.conf:ro
+
   api:
     build:
       target: development
