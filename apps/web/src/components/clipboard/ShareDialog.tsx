@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -33,8 +33,42 @@ export function ShareDialog({ open, onClose, item, onItemUpdated }: ShareDialogP
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const autoEnabledRef = useRef(false);
 
   const shareUrl = item.isPublic && item.shareToken ? buildShareUrl(item.shareToken) : null;
+
+  // Auto-enable sharing when dialog opens and item is not yet public
+  useEffect(() => {
+    if (!open) {
+      autoEnabledRef.current = false;
+      return;
+    }
+    if (item.isPublic || autoEnabledRef.current || isLoading) return;
+
+    autoEnabledRef.current = true;
+    setIsLoading(true);
+    setError(null);
+
+    enableSharing(item.id)
+      .then((result) => {
+        const updated = { ...item, isPublic: true, shareToken: result.shareToken };
+        onItemUpdated(updated);
+
+        // Auto-copy the URL to clipboard
+        const url = buildShareUrl(result.shareToken);
+        navigator.clipboard.writeText(url).then(() => {
+          setSnackbarOpen(true);
+        }).catch(() => {
+          // clipboard write failed silently
+        });
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : 'Failed to enable sharing');
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [open, item, isLoading, onItemUpdated]);
 
   const handleToggle = async () => {
     setIsLoading(true);
@@ -45,11 +79,17 @@ export function ShareDialog({ open, onClose, item, onItemUpdated }: ShareDialogP
         onItemUpdated({ ...item, isPublic: false, shareToken: null });
       } else {
         const result = await enableSharing(item.id);
-        onItemUpdated({
-          ...item,
-          isPublic: true,
-          shareToken: result.shareToken,
-        });
+        const updated = { ...item, isPublic: true, shareToken: result.shareToken };
+        onItemUpdated(updated);
+
+        // Auto-copy URL on re-enable
+        const url = buildShareUrl(result.shareToken);
+        try {
+          await navigator.clipboard.writeText(url);
+          setSnackbarOpen(true);
+        } catch {
+          // clipboard write failed silently
+        }
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update sharing settings');
@@ -73,9 +113,21 @@ export function ShareDialog({ open, onClose, item, onItemUpdated }: ShareDialogP
     onClose();
   };
 
+  // Stop propagation on the dialog to prevent the card click handler from firing
+  const stopPropagation = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   return (
     <>
-      <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="sm"
+        fullWidth
+        onClick={stopPropagation}
+        onMouseDown={stopPropagation}
+      >
         <DialogTitle>Share Item</DialogTitle>
 
         <DialogContent>

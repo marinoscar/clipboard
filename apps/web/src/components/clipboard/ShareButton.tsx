@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Share from '@mui/icons-material/Share';
@@ -14,15 +14,17 @@ interface ShareButtonProps {
 export function ShareButton({ item, onItemUpdated }: ShareButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
 
+  const handleClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDialogOpen(true);
+  }, []);
+
   return (
     <>
       <Tooltip title="Share">
         <IconButton
           size="small"
-          onClick={(e) => {
-            e.stopPropagation();
-            setDialogOpen(true);
-          }}
+          onClick={handleClick}
           color={item.isPublic ? 'primary' : 'default'}
           aria-label="Share item"
         >
@@ -34,10 +36,7 @@ export function ShareButton({ item, onItemUpdated }: ShareButtonProps) {
         open={dialogOpen}
         onClose={() => setDialogOpen(false)}
         item={item}
-        onItemUpdated={(updated) => {
-          onItemUpdated(updated);
-          setDialogOpen(false);
-        }}
+        onItemUpdated={onItemUpdated}
       />
     </>
   );
