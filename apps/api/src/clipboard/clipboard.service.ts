@@ -15,7 +15,7 @@ interface FileInput {
   mimetype: string;
 }
 
-interface PaginatedResult<T> {
+export interface PaginatedResult<T> {
   items: T[];
   total: number;
   page: number;

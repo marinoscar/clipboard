@@ -9,6 +9,7 @@ const mockRequestUser = {
   id: 'user-1',
   email: 'test@example.com',
   isAdmin: false,
+  isActive: true,
 };
 
 const mockClipboardItem = {

@@ -117,7 +117,7 @@ describe('ClipboardService', () => {
 
       const result = await service.createFileItem('user-1', fileInput);
 
-      expect(s3.upload).toHaveBeenCalledBefore !== undefined; // upload called first
+      // S3 upload is called before DB write (fail-fast pattern)
       expect(s3.upload).toHaveBeenCalledTimes(1);
       expect(prisma.clipboardItem.create).toHaveBeenCalledTimes(1);
       expect(result).toEqual(mockFileItem);
