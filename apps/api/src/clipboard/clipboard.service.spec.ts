@@ -4,6 +4,7 @@ import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { ClipboardService } from './clipboard.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3StorageProvider } from '../storage/s3-storage.provider';
+import { EventsGateway } from '../gateway/events.gateway';
 
 const mockUser = {
   id: 'user-1',
@@ -64,12 +65,17 @@ describe('ClipboardService', () => {
       get: jest.fn().mockReturnValue(undefined),
     };
 
+    const eventsGateway = {
+      emitToUser: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ClipboardService,
         { provide: PrismaService, useValue: prisma },
         { provide: S3StorageProvider, useValue: s3 },
         { provide: ConfigService, useValue: configService },
+        { provide: EventsGateway, useValue: eventsGateway },
       ],
     }).compile();
 
