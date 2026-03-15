@@ -289,3 +289,35 @@ export async function completeMultipartUpload(
 export async function abortMultipartUpload(itemId: string): Promise<void> {
   return api.post<void>(`/clipboard/upload/${itemId}/abort`);
 }
+
+// Sharing API
+
+export async function enableSharing(
+  itemId: string,
+): Promise<{ shareToken: string; shareUrl: string }> {
+  return api.post<{ shareToken: string; shareUrl: string }>(`/clipboard/${itemId}/share`);
+}
+
+export async function disableSharing(itemId: string): Promise<void> {
+  return api.delete<void>(`/clipboard/${itemId}/share`);
+}
+
+export async function getPublicItem(shareToken: string): Promise<ClipboardItem> {
+  return api.get<ClipboardItem>(`/share/${shareToken}`, { skipAuth: true });
+}
+
+export async function getPublicDownloadUrl(shareToken: string): Promise<{ url: string }> {
+  return api.get<{ url: string }>(`/share/${shareToken}/download`, { skipAuth: true });
+}
+
+// System settings API
+
+export async function getSystemSettings(): Promise<Record<string, unknown>> {
+  return api.get<Record<string, unknown>>('/settings/system');
+}
+
+export async function updateSystemSettings(
+  data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return api.patch<Record<string, unknown>>('/settings/system', data);
+}

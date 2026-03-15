@@ -15,13 +15,16 @@ import Image from '@mui/icons-material/Image';
 import AudioFile from '@mui/icons-material/AudioFile';
 import VideoFile from '@mui/icons-material/VideoFile';
 import TextSnippet from '@mui/icons-material/TextSnippet';
+import LinkIcon from '@mui/icons-material/Link';
 import { ClipboardItem } from '../../types';
 import { getDownloadUrl } from '../../services/api';
+import { ShareButton } from './ShareButton';
 
 interface ClipboardItemCardProps {
   item: ClipboardItem;
   onDelete: (id: string) => void;
   onClick?: (item: ClipboardItem) => void;
+  onItemUpdated?: (item: ClipboardItem) => void;
 }
 
 function formatFileSize(bytes: number): string {
@@ -74,7 +77,7 @@ function typeColor(
   }
 }
 
-export function ClipboardItemCard({ item, onDelete, onClick }: ClipboardItemCardProps) {
+export function ClipboardItemCard({ item, onDelete, onClick, onItemUpdated }: ClipboardItemCardProps) {
   const [copied, setCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
 
@@ -125,15 +128,28 @@ export function ClipboardItemCard({ item, onDelete, onClick }: ClipboardItemCard
       }}
     >
       <CardContent sx={{ flex: 1, pb: 0 }}>
-        {/* Header row: type chip + timestamp */}
+        {/* Header row: type chip + public indicator + timestamp */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-          <Chip
-            icon={typeIcon(item.type)}
-            label={item.type}
-            size="small"
-            color={typeColor(item.type)}
-            variant="outlined"
-          />
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+            <Chip
+              icon={typeIcon(item.type)}
+              label={item.type}
+              size="small"
+              color={typeColor(item.type)}
+              variant="outlined"
+            />
+            {item.isPublic && (
+              <Tooltip title="Shared publicly">
+                <Chip
+                  icon={<LinkIcon fontSize="small" />}
+                  label="Public"
+                  size="small"
+                  color="primary"
+                  variant="outlined"
+                />
+              </Tooltip>
+            )}
+          </Box>
           <Typography variant="caption" color="text.disabled">
             {formatRelativeTime(item.createdAt)}
           </Typography>
@@ -236,6 +252,10 @@ export function ClipboardItemCard({ item, onDelete, onClick }: ClipboardItemCard
               </IconButton>
             </span>
           </Tooltip>
+        )}
+
+        {onItemUpdated && (
+          <ShareButton item={item} onItemUpdated={onItemUpdated} />
         )}
 
         <Tooltip title="Delete">

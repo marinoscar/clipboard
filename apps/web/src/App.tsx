@@ -14,6 +14,8 @@ import { LoadingSpinner } from './components/common/LoadingSpinner';
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'));
 const ClipboardPage = lazy(() => import('./pages/ClipboardPage'));
+const PublicItemPage = lazy(() => import('./pages/PublicItemPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 
 function AppRoutes() {
   const { theme } = useThemeContext();
@@ -27,11 +29,13 @@ function AppRoutes() {
             {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
+            <Route path="/share/:shareToken" element={<PublicItemPage />} />
 
             {/* Protected routes */}
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/" element={<ClipboardPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>
 

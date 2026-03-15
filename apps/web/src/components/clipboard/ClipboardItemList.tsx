@@ -16,6 +16,7 @@ interface ClipboardItemListProps {
   onLoadMore: () => void;
   onDelete: (id: string) => void;
   onItemClick?: (item: ClipboardItem) => void;
+  onItemUpdated?: (item: ClipboardItem) => void;
 }
 
 function SkeletonCard() {
@@ -41,6 +42,7 @@ export function ClipboardItemList({
   onLoadMore,
   onDelete,
   onItemClick,
+  onItemUpdated,
 }: ClipboardItemListProps) {
   if (!isLoading && items.length === 0) {
     return (
@@ -71,7 +73,7 @@ export function ClipboardItemList({
       <Grid container spacing={2}>
         {items.map((item) => (
           <Grid item key={item.id} xs={12} sm={6} md={4}>
-            <ClipboardItemCard item={item} onDelete={onDelete} onClick={onItemClick} />
+            <ClipboardItemCard item={item} onDelete={onDelete} onClick={onItemClick} onItemUpdated={onItemUpdated} />
           </Grid>
         ))}
 

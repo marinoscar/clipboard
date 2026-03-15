@@ -41,7 +41,7 @@ export default function ClipboardPage() {
     ...(typeFilter !== 'all' ? { type: typeFilter } : {}),
   };
 
-  const { items, isLoading, error, hasMore, loadMore, removeItem, addItem } =
+  const { items, isLoading, error, hasMore, loadMore, removeItem, addItem, updateItem } =
     useClipboard(query);
 
   const {
@@ -166,6 +166,7 @@ export default function ClipboardPage() {
         onLoadMore={loadMore}
         onDelete={handleDelete}
         onItemClick={handleItemClick}
+        onItemUpdated={updateItem}
       />
 
       {/* Text item full-view dialog */}

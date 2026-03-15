@@ -66,6 +66,10 @@ export function useClipboard(query?: ClipboardQuery) {
     setTotal((prev) => prev + 1);
   }, []);
 
+  const updateItem = useCallback((item: ClipboardItem) => {
+    setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
+  }, []);
+
   // Real-time socket event handlers
   const handleItemCreated = useCallback((item: ClipboardItem) => {
     setItems((prev) => {
@@ -102,5 +106,6 @@ export function useClipboard(query?: ClipboardQuery) {
     loadMore,
     removeItem,
     addItem,
+    updateItem,
   };
 }
