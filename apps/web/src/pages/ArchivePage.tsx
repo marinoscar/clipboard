@@ -63,7 +63,7 @@ export default function ArchivePage() {
   useEffect(() => {
     getSystemSettings()
       .then((settings) => {
-        const days = settings?.retentionDays;
+        const days = settings?.['retention.deleteAfterArchiveDays'];
         if (typeof days === 'number') {
           setRetentionDays(days);
         }

@@ -35,10 +35,10 @@ export default function SettingsPage() {
       const settings = await getSystemSettings();
       setRetention({
         archiveAfterDays:
-          typeof settings.archiveAfterDays === 'number' ? settings.archiveAfterDays : null,
+          typeof settings['retention.archiveAfterDays'] === 'number' ? settings['retention.archiveAfterDays'] as number : null,
         deleteAfterArchiveDays:
-          typeof settings.deleteAfterArchiveDays === 'number'
-            ? settings.deleteAfterArchiveDays
+          typeof settings['retention.deleteAfterArchiveDays'] === 'number'
+            ? settings['retention.deleteAfterArchiveDays'] as number
             : null,
       });
     } catch (err) {
@@ -58,8 +58,8 @@ export default function SettingsPage() {
     setSaving(true);
     try {
       await updateSystemSettings({
-        archiveAfterDays: retention.archiveAfterDays,
-        deleteAfterArchiveDays: retention.deleteAfterArchiveDays,
+        'retention.archiveAfterDays': retention.archiveAfterDays,
+        'retention.deleteAfterArchiveDays': retention.deleteAfterArchiveDays,
       });
       setSnackbar({ open: true, message: 'Settings saved successfully.', severity: 'success' });
     } catch (err) {
