@@ -28,14 +28,28 @@ export function SocketProvider({ children }: SocketProviderProps) {
     const token = api.getAccessToken();
     if (!token) return;
 
+    console.log('[Socket] Connecting to /clipboard namespace...');
     const s = io('/clipboard', {
       auth: { token },
       transports: ['websocket'],
     });
 
+    s.on('connect', () => {
+      console.log('[Socket] Connected, id:', s.id);
+    });
+
+    s.on('disconnect', (reason) => {
+      console.log('[Socket] Disconnected, reason:', reason);
+    });
+
+    s.on('connect_error', (err) => {
+      console.error('[Socket] Connection error:', err.message);
+    });
+
     setSocket(s);
 
     return () => {
+      console.log('[Socket] Cleaning up connection');
       s.disconnect();
     };
   }, [user]); // eslint-disable-line react-hooks/exhaustive-deps

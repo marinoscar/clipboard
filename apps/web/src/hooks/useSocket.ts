@@ -6,10 +6,19 @@ export function useSocket(event: string, handler: (data: any) => void) {
   const socket = useSocketContext();
 
   useEffect(() => {
-    if (!socket) return;
-    socket.on(event, handler);
+    if (!socket) {
+      console.log(`[useSocket] No socket available for event "${event}"`);
+      return;
+    }
+    console.log(`[useSocket] Subscribing to "${event}", socket connected:`, socket.connected);
+    const wrappedHandler = (data: unknown) => {
+      console.log(`[useSocket] Received "${event}":`, data);
+      handler(data as Parameters<typeof handler>[0]);
+    };
+    socket.on(event, wrappedHandler);
     return () => {
-      socket.off(event, handler);
+      console.log(`[useSocket] Unsubscribing from "${event}"`);
+      socket.off(event, wrappedHandler);
     };
   }, [socket, event, handler]);
 }
