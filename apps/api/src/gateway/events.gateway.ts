@@ -30,11 +30,11 @@ export class EventsGateway implements OnGatewayConnection, OnGatewayDisconnect {
     }
 
     try {
-      const payload = this.jwtService.verify<{ userId: string }>(token);
-      const userId = payload.userId;
+      const payload = this.jwtService.verify<{ sub: string }>(token);
+      const userId = payload.sub;
 
       if (!userId) {
-        throw new Error('JWT payload missing userId claim');
+        throw new Error('JWT payload missing sub claim');
       }
 
       const room = `user:${userId}`;

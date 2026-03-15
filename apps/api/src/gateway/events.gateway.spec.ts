@@ -49,7 +49,7 @@ describe('EventsGateway', () => {
   describe('handleConnection', () => {
     it('should verify JWT and join user room when token is valid', () => {
       const userId = 'user-42';
-      jwtService.verify.mockReturnValue({ userId });
+      jwtService.verify.mockReturnValue({ sub: userId });
 
       const client = makeSocket('valid-token');
       gateway.handleConnection(client);
@@ -90,8 +90,8 @@ describe('EventsGateway', () => {
       expect(client.disconnect).toHaveBeenCalled();
     });
 
-    it('should disconnect client when JWT payload has no userId', () => {
-      jwtService.verify.mockReturnValue({ userId: undefined });
+    it('should disconnect client when JWT payload has no sub', () => {
+      jwtService.verify.mockReturnValue({ sub: undefined });
 
       const client = makeSocket('token-missing-userid');
       gateway.handleConnection(client);
