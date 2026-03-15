@@ -7,9 +7,12 @@ import Typography from '@mui/material/Typography';
 import IconButton from '@mui/material/IconButton';
 import Chip from '@mui/material/Chip';
 import Tooltip from '@mui/material/Tooltip';
+import Checkbox from '@mui/material/Checkbox';
 import ContentCopy from '@mui/icons-material/ContentCopy';
-import Delete from '@mui/icons-material/Delete';
+import Archive from '@mui/icons-material/Archive';
 import Download from '@mui/icons-material/Download';
+import Unarchive from '@mui/icons-material/Unarchive';
+import DeleteForever from '@mui/icons-material/DeleteForever';
 import InsertDriveFile from '@mui/icons-material/InsertDriveFile';
 import Image from '@mui/icons-material/Image';
 import AudioFile from '@mui/icons-material/AudioFile';
@@ -20,11 +23,20 @@ import { ClipboardItem } from '../../types';
 import { getDownloadUrl } from '../../services/api';
 import { ShareButton } from './ShareButton';
 
+export type CardMode = 'clipboard' | 'archive';
+
 interface ClipboardItemCardProps {
   item: ClipboardItem;
+  /** In clipboard mode: archives the item. In archive mode: permanently deletes. */
   onDelete: (id: string) => void;
+  /** Archive mode only: restores item to active. */
+  onRestore?: (id: string) => void;
   onClick?: (item: ClipboardItem) => void;
   onItemUpdated?: (item: ClipboardItem) => void;
+  mode?: CardMode;
+  selected?: boolean;
+  selectionMode?: boolean;
+  onSelect?: (id: string) => void;
 }
 
 function formatFileSize(bytes: number): string {
@@ -77,9 +89,22 @@ function typeColor(
   }
 }
 
-export function ClipboardItemCard({ item, onDelete, onClick, onItemUpdated }: ClipboardItemCardProps) {
+export function ClipboardItemCard({
+  item,
+  onDelete,
+  onRestore,
+  onClick,
+  onItemUpdated,
+  mode = 'clipboard',
+  selected = false,
+  selectionMode = false,
+  onSelect,
+}: ClipboardItemCardProps) {
   const [copied, setCopied] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [hovered, setHovered] = useState(false);
+
+  const showCheckbox = selectionMode || hovered || selected;
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -103,33 +128,78 @@ export function ClipboardItemCard({ item, onDelete, onClick, onItemUpdated }: Cl
     }
   };
 
-  const handleDelete = (e: React.MouseEvent) => {
+  const handlePrimaryAction = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDelete(item.id);
   };
 
+  const handleRestore = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onRestore) onRestore(item.id);
+  };
+
   const handleCardClick = () => {
+    if (selectionMode && onSelect) {
+      onSelect(item.id);
+      return;
+    }
     if (onClick) onClick(item);
+  };
+
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (onSelect) onSelect(item.id);
   };
 
   return (
     <Card
       variant="outlined"
       onClick={handleCardClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
       sx={{
         height: '100%',
         display: 'flex',
         flexDirection: 'column',
-        cursor: onClick ? 'pointer' : 'default',
-        transition: 'box-shadow 0.2s',
-        '&:hover': onClick
-          ? { boxShadow: 3 }
-          : undefined,
+        cursor: onClick || selectionMode ? 'pointer' : 'default',
+        transition: 'box-shadow 0.2s, border-color 0.2s',
+        position: 'relative',
+        ...(selected
+          ? {
+              borderColor: 'primary.main',
+              boxShadow: (theme) => `0 0 0 2px ${theme.palette.primary.main}`,
+            }
+          : onClick || selectionMode
+          ? { '&:hover': { boxShadow: 3 } }
+          : undefined),
       }}
     >
+      {/* Selection checkbox — visible on hover, when in selection mode, or when selected */}
+      {onSelect && (
+        <Box
+          sx={{
+            position: 'absolute',
+            top: 6,
+            left: 6,
+            zIndex: 1,
+            opacity: showCheckbox ? 1 : 0,
+            transition: 'opacity 0.15s',
+          }}
+          onClick={handleCheckboxClick}
+        >
+          <Checkbox
+            checked={selected}
+            size="small"
+            sx={{ p: 0.5, bgcolor: 'background.paper', borderRadius: 1 }}
+          />
+        </Box>
+      )}
+
       <CardContent sx={{ flex: 1, pb: 0 }}>
         {/* Header row: type chip + public indicator + timestamp */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
+        <Box
+          sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}
+        >
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
             <Chip
               icon={typeIcon(item.type)}
@@ -232,37 +302,51 @@ export function ClipboardItemCard({ item, onDelete, onClick, onItemUpdated }: Cl
       </CardContent>
 
       <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
-        {item.type === 'text' && (
-          <Tooltip title={copied ? 'Copied!' : 'Copy'}>
-            <IconButton size="small" onClick={handleCopy} color={copied ? 'success' : 'default'}>
-              <ContentCopy fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
+        {mode === 'clipboard' && (
+          <>
+            {item.type === 'text' && (
+              <Tooltip title={copied ? 'Copied!' : 'Copy'}>
+                <IconButton size="small" onClick={handleCopy} color={copied ? 'success' : 'default'}>
+                  <ContentCopy fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            )}
 
-        {item.type !== 'text' && (
-          <Tooltip title="Download">
-            <span>
-              <IconButton
-                size="small"
-                onClick={handleDownload}
-                disabled={isDownloading}
-              >
-                <Download fontSize="small" />
+            {item.type !== 'text' && (
+              <Tooltip title="Download">
+                <span>
+                  <IconButton size="small" onClick={handleDownload} disabled={isDownloading}>
+                    <Download fontSize="small" />
+                  </IconButton>
+                </span>
+              </Tooltip>
+            )}
+
+            {onItemUpdated && <ShareButton item={item} onItemUpdated={onItemUpdated} />}
+
+            <Tooltip title="Archive">
+              <IconButton size="small" onClick={handlePrimaryAction} color="default">
+                <Archive fontSize="small" />
               </IconButton>
-            </span>
-          </Tooltip>
+            </Tooltip>
+          </>
         )}
 
-        {onItemUpdated && (
-          <ShareButton item={item} onItemUpdated={onItemUpdated} />
-        )}
+        {mode === 'archive' && (
+          <>
+            <Tooltip title="Restore to clipboard">
+              <IconButton size="small" onClick={handleRestore} color="primary">
+                <Unarchive fontSize="small" />
+              </IconButton>
+            </Tooltip>
 
-        <Tooltip title="Delete">
-          <IconButton size="small" onClick={handleDelete} color="error">
-            <Delete fontSize="small" />
-          </IconButton>
-        </Tooltip>
+            <Tooltip title="Delete permanently">
+              <IconButton size="small" onClick={handlePrimaryAction} color="error">
+                <DeleteForever fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </>
+        )}
       </CardActions>
     </Card>
   );

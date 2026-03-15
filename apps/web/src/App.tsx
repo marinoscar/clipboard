@@ -16,6 +16,7 @@ const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'));
 const ClipboardPage = lazy(() => import('./pages/ClipboardPage'));
 const PublicItemPage = lazy(() => import('./pages/PublicItemPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const ArchivePage = lazy(() => import('./pages/ArchivePage'));
 
 function AppRoutes() {
   const { theme } = useThemeContext();
@@ -35,6 +36,7 @@ function AppRoutes() {
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/" element={<ClipboardPage />} />
+                <Route path="/archive" element={<ArchivePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
               </Route>
             </Route>

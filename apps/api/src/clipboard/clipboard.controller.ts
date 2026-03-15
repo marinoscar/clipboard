@@ -25,6 +25,7 @@ import { FastifyRequest } from 'fastify';
 import { ClipboardService } from './clipboard.service';
 import { CreateTextItemDto } from './dto/create-item.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
+import { BatchOperationDto } from './dto/batch-operation.dto';
 import { ClipboardQueryDto } from './dto/clipboard-query.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequestUser } from '../auth/interfaces/authenticated-user.interface';
@@ -85,6 +86,21 @@ export class ClipboardController {
       filename: file.filename,
       mimetype: file.mimetype,
     });
+  }
+
+  /**
+   * POST /clipboard/batch — Batch archive, restore, or delete items
+   * Must be declared before :id routes to prevent "batch" from being captured as an ID.
+   */
+  @Post('batch')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Batch archive, restore, or delete clipboard items' })
+  @ApiResponse({ status: 200, description: 'Number of affected items' })
+  async batchOperation(
+    @Body() dto: BatchOperationDto,
+    @CurrentUser() user: RequestUser,
+  ) {
+    return this.clipboardService.batchOperation(user.id, dto.ids, dto.action);
   }
 
   /**

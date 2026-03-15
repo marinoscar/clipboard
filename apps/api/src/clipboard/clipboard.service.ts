@@ -182,6 +182,46 @@ export class ClipboardService {
     return deleted;
   }
 
+  async batchOperation(
+    userId: string,
+    ids: string[],
+    action: 'archive' | 'restore' | 'delete',
+  ): Promise<{ count: number }> {
+    const statusMap = {
+      archive: 'archived',
+      restore: 'active',
+      delete: 'deleted',
+    } as const;
+    const newStatus = statusMap[action];
+
+    const result = await this.prisma.clipboardItem.updateMany({
+      where: {
+        id: { in: ids },
+        userId,
+      },
+      data: { status: newStatus },
+    });
+
+    this.logger.debug(
+      `Batch ${action}: ${result.count} items updated for user ${userId}`,
+    );
+
+    if (action === 'delete') {
+      for (const id of ids) {
+        this.events.emitToUser(userId, 'item:deleted', { id });
+      }
+    } else {
+      const updatedItems = await this.prisma.clipboardItem.findMany({
+        where: { id: { in: ids }, userId },
+      });
+      for (const item of updatedItems) {
+        this.events.emitToUser(userId, 'item:updated', item);
+      }
+    }
+
+    return { count: result.count };
+  }
+
   async getDownloadUrl(userId: string, itemId: string): Promise<{ url: string }> {
     const item = await this.getItem(userId, itemId);
 

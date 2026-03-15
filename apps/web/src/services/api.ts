@@ -232,9 +232,16 @@ export async function getClipboardItem(id: string): Promise<ClipboardItem> {
 
 export async function updateClipboardItem(
   id: string,
-  data: { content?: string; status?: string },
+  data: { content?: string; status?: string; isPublic?: boolean },
 ): Promise<ClipboardItem> {
   return api.patch<ClipboardItem>(`/clipboard/${id}`, data);
+}
+
+export async function batchOperation(
+  ids: string[],
+  action: 'archive' | 'restore' | 'delete',
+): Promise<{ count: number }> {
+  return api.post<{ count: number }>('/clipboard/batch', { ids, action });
 }
 
 export async function deleteClipboardItem(id: string): Promise<void> {

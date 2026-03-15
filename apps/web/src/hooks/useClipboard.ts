@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ClipboardItem, ClipboardQuery, PaginatedResponse } from '../types';
-import { getClipboardItems, deleteClipboardItem } from '../services/api';
+import { getClipboardItems, deleteClipboardItem, updateClipboardItem } from '../services/api';
 import { useSocket } from './useSocket';
 
 /** Sort items newest-first by createdAt */
@@ -61,6 +61,18 @@ export function useClipboard(query?: ClipboardQuery) {
     setTotal((prev) => prev - 1);
   }, []);
 
+  const archiveItem = useCallback(async (id: string) => {
+    await updateClipboardItem(id, { status: 'archived' });
+    setItems((prev) => prev.filter((item) => item.id !== id));
+    setTotal((prev) => prev - 1);
+  }, []);
+
+  const restoreItem = useCallback(async (id: string) => {
+    await updateClipboardItem(id, { status: 'active' });
+    setItems((prev) => prev.filter((item) => item.id !== id));
+    setTotal((prev) => prev - 1);
+  }, []);
+
   const addItem = useCallback((item: ClipboardItem) => {
     setItems((prev) => sortNewestFirst([item, ...prev]));
     setTotal((prev) => prev + 1);
@@ -105,6 +117,8 @@ export function useClipboard(query?: ClipboardQuery) {
     refresh,
     loadMore,
     removeItem,
+    archiveItem,
+    restoreItem,
     addItem,
     updateItem,
   };

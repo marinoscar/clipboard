@@ -6,8 +6,9 @@ import Skeleton from '@mui/material/Skeleton';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import ContentPaste from '@mui/icons-material/ContentPaste';
+import Inventory2Outlined from '@mui/icons-material/Inventory2Outlined';
 import { ClipboardItem } from '../../types';
-import { ClipboardItemCard } from './ClipboardItemCard';
+import { ClipboardItemCard, CardMode } from './ClipboardItemCard';
 
 interface ClipboardItemListProps {
   items: ClipboardItem[];
@@ -15,8 +16,15 @@ interface ClipboardItemListProps {
   hasMore: boolean;
   onLoadMore: () => void;
   onDelete: (id: string) => void;
+  onRestore?: (id: string) => void;
   onItemClick?: (item: ClipboardItem) => void;
   onItemUpdated?: (item: ClipboardItem) => void;
+  mode?: CardMode;
+  selectedIds?: Set<string>;
+  onSelectItem?: (id: string) => void;
+  selectionMode?: boolean;
+  emptyMessage?: string;
+  emptySubMessage?: string;
 }
 
 function SkeletonCard() {
@@ -41,10 +49,18 @@ export function ClipboardItemList({
   hasMore,
   onLoadMore,
   onDelete,
+  onRestore,
   onItemClick,
   onItemUpdated,
+  mode = 'clipboard',
+  selectedIds,
+  onSelectItem,
+  selectionMode = false,
+  emptyMessage,
+  emptySubMessage,
 }: ClipboardItemListProps) {
   if (!isLoading && items.length === 0) {
+    const isArchiveMode = mode === 'archive';
     return (
       <Box
         sx={{
@@ -57,13 +73,20 @@ export function ClipboardItemList({
           color: 'text.disabled',
         }}
       >
-        <ContentPaste sx={{ fontSize: 64 }} />
+        {isArchiveMode ? (
+          <Inventory2Outlined sx={{ fontSize: 64 }} />
+        ) : (
+          <ContentPaste sx={{ fontSize: 64 }} />
+        )}
         <Typography variant="h6" color="text.disabled">
-          No items yet. Paste something!
+          {emptyMessage ?? (isArchiveMode ? 'Archive is empty.' : 'No items yet. Paste something!')}
         </Typography>
-        <Typography variant="body2" color="text.disabled">
-          Press Ctrl+V anywhere on this page, or drop files into the zone above.
-        </Typography>
+        {(emptySubMessage !== undefined || !isArchiveMode) && (
+          <Typography variant="body2" color="text.disabled">
+            {emptySubMessage ??
+              'Press Ctrl+V anywhere on this page, or drop files into the zone above.'}
+          </Typography>
+        )}
       </Box>
     );
   }
@@ -73,7 +96,17 @@ export function ClipboardItemList({
       <Grid container spacing={2}>
         {items.map((item) => (
           <Grid item key={item.id} xs={12} sm={6} md={4}>
-            <ClipboardItemCard item={item} onDelete={onDelete} onClick={onItemClick} onItemUpdated={onItemUpdated} />
+            <ClipboardItemCard
+              item={item}
+              onDelete={onDelete}
+              onRestore={onRestore}
+              onClick={onItemClick}
+              onItemUpdated={onItemUpdated}
+              mode={mode}
+              selected={selectedIds?.has(item.id) ?? false}
+              selectionMode={selectionMode}
+              onSelect={onSelectItem}
+            />
           </Grid>
         ))}
 
