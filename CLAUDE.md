@@ -237,9 +237,9 @@ Key variables (see `infra/compose/.env.example` for full list):
 - `POST /api/auth/refresh` — Refresh access token (Cookie)
 - `POST /api/auth/logout` — Logout (JWT)
 
-### Clipboard (Phase 2+)
+### Clipboard
 - `POST /api/clipboard` — Create text item
-- `POST /api/clipboard/upload` — Upload file (< 10MB)
+- `POST /api/clipboard/upload` — Upload file (multipart, < 100MB)
 - `GET /api/clipboard` — List items (paginated)
 - `GET /api/clipboard/:id` — Get item
 - `PATCH /api/clipboard/:id` — Update item
@@ -283,3 +283,5 @@ Key variables (see `infra/compose/.env.example` for full list):
 - Google OAuth strategy needs `proxy: true` when behind Nginx reverse proxy
 - Prisma migrate must run inside the container (SQLite file is in Docker volume)
 - No Node.js on the host — all commands run via Docker
+- Nginx config is split: `nginx.conf` (prod, web on port 80) and `nginx.dev.conf` (dev, web on port 5173) — dev.compose.yml mounts the dev variant
+- Web `tsconfig.json` excludes test files (`*.test.ts/tsx`, `*.spec.ts/tsx`, `__tests__/`) to prevent build failures
