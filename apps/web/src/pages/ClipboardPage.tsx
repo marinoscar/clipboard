@@ -9,8 +9,10 @@ import Alert from '@mui/material/Alert';
 import { ClipboardItem, ClipboardQuery } from '../types';
 import { useClipboard } from '../hooks/useClipboard';
 import { useClipboardPaste } from '../hooks/useClipboardPaste';
+import { useMultipartUpload } from '../hooks/useMultipartUpload';
 import { ClipboardInput } from '../components/clipboard/ClipboardInput';
 import { ClipboardItemList } from '../components/clipboard/ClipboardItemList';
+import { UploadProgress } from '../components/clipboard/UploadProgress';
 import { TextItemView } from '../components/clipboard/TextItemView';
 import { FileItemView } from '../components/clipboard/FileItemView';
 
@@ -42,12 +44,43 @@ export default function ClipboardPage() {
   const { items, isLoading, error, hasMore, loadMore, removeItem, addItem } =
     useClipboard(query);
 
+  const {
+    startUpload,
+    abort: abortMultipart,
+    isUploading: isMultipartUploading,
+    progress: multipartProgress,
+    currentFile: multipartFile,
+    isLargeFile,
+  } = useMultipartUpload();
+
   const handleItemCreated = useCallback(
     (item: ClipboardItem) => {
       addItem(item);
       setSnackbar({ open: true, message: 'Item added to clipboard!', severity: 'success' });
     },
     [addItem],
+  );
+
+  // Intercept large files: return true to signal ClipboardInput to skip its own upload
+  const handleFileSelected = useCallback(
+    (file: File): boolean => {
+      if (!isLargeFile(file)) return false;
+
+      startUpload(file)
+        .then((item) => handleItemCreated(item))
+        .catch((err: Error) => {
+          if (err.message !== 'Upload cancelled') {
+            setSnackbar({
+              open: true,
+              message: `Upload failed: ${err.message}`,
+              severity: 'error',
+            });
+          }
+        });
+
+      return true;
+    },
+    [isLargeFile, startUpload, handleItemCreated],
   );
 
   useClipboardPaste(handleItemCreated);
@@ -89,7 +122,20 @@ export default function ClipboardPage() {
       </Box>
 
       {/* Drop/paste input zone */}
-      <ClipboardInput onItemCreated={handleItemCreated} />
+      <ClipboardInput
+        onItemCreated={handleItemCreated}
+        onFileSelected={handleFileSelected}
+      />
+
+      {/* Large file multipart upload progress */}
+      {isMultipartUploading && multipartFile && (
+        <UploadProgress
+          fileName={multipartFile.name}
+          fileSize={multipartFile.size}
+          progress={multipartProgress}
+          onCancel={abortMultipart}
+        />
+      )}
 
       {/* Type filter chips */}
       <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: 'wrap', gap: 1 }}>

@@ -244,3 +244,48 @@ export async function deleteClipboardItem(id: string): Promise<void> {
 export async function getDownloadUrl(id: string): Promise<{ url: string }> {
   return api.get<{ url: string }>(`/clipboard/${id}/download`);
 }
+
+// Multipart upload API
+
+export interface InitUploadResponse {
+  itemId: string;
+  uploadId: string;
+  partSize: number;
+  totalParts: number;
+  storageKey: string;
+}
+
+export async function initMultipartUpload(data: {
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+}): Promise<InitUploadResponse> {
+  return api.post<InitUploadResponse>('/clipboard/upload/init', data);
+}
+
+export async function getPartUploadUrl(
+  itemId: string,
+  partNumber: number,
+): Promise<{ url: string; partNumber: number }> {
+  return api.get<{ url: string; partNumber: number }>(
+    `/clipboard/upload/${itemId}/url?partNumber=${partNumber}`,
+  );
+}
+
+export async function recordUploadPart(
+  itemId: string,
+  data: { partNumber: number; eTag: string; size: number },
+): Promise<void> {
+  return api.post<void>(`/clipboard/upload/${itemId}/part`, data);
+}
+
+export async function completeMultipartUpload(
+  itemId: string,
+  parts: { partNumber: number; eTag: string }[],
+): Promise<ClipboardItem> {
+  return api.post<ClipboardItem>(`/clipboard/upload/${itemId}/complete`, { parts });
+}
+
+export async function abortMultipartUpload(itemId: string): Promise<void> {
+  return api.post<void>(`/clipboard/upload/${itemId}/abort`);
+}

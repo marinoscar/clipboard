@@ -11,9 +11,11 @@ import { useFileUpload } from '../../hooks/useFileUpload';
 
 interface ClipboardInputProps {
   onItemCreated: (item: ClipboardItem) => void;
+  /** Called with the raw File before upload begins; parent can intercept for large files. */
+  onFileSelected?: (file: File) => boolean;
 }
 
-export function ClipboardInput({ onItemCreated }: ClipboardInputProps) {
+export function ClipboardInput({ onItemCreated, onFileSelected }: ClipboardInputProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { upload, isUploading, error } = useFileUpload();
@@ -47,6 +49,8 @@ export function ClipboardInput({ onItemCreated }: ClipboardInputProps) {
     if (files.length === 0) return;
 
     for (const file of files) {
+      // If parent intercepts the file (returns true), skip the default upload
+      if (onFileSelected?.(file)) continue;
       const result = await upload(file);
       if (result) {
         onItemCreated(result);
@@ -57,6 +61,8 @@ export function ClipboardInput({ onItemCreated }: ClipboardInputProps) {
   const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     for (const file of files) {
+      // If parent intercepts the file (returns true), skip the default upload
+      if (onFileSelected?.(file)) continue;
       const result = await upload(file);
       if (result) {
         onItemCreated(result);

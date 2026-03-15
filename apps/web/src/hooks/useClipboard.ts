@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ClipboardItem, ClipboardQuery, PaginatedResponse } from '../types';
 import { getClipboardItems, deleteClipboardItem } from '../services/api';
+import { useSocket } from './useSocket';
 
 export function useClipboard(query?: ClipboardQuery) {
   const [items, setItems] = useState<ClipboardItem[]>([]);
@@ -57,6 +58,33 @@ export function useClipboard(query?: ClipboardQuery) {
     setItems((prev) => [item, ...prev]);
     setTotal((prev) => prev + 1);
   }, []);
+
+  // Real-time socket event handlers
+  const handleItemCreated = useCallback((item: ClipboardItem) => {
+    setItems((prev) => {
+      // Avoid duplicates when the same user created the item locally
+      if (prev.some((i) => i.id === item.id)) return prev;
+      return [item, ...prev];
+    });
+    setTotal((prev) => prev + 1);
+  }, []);
+
+  const handleItemUpdated = useCallback((item: ClipboardItem) => {
+    setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
+  }, []);
+
+  const handleItemDeleted = useCallback(({ id }: { id: string }) => {
+    setItems((prev) => {
+      const exists = prev.some((i) => i.id === id);
+      if (!exists) return prev;
+      setTotal((t) => t - 1);
+      return prev.filter((i) => i.id !== id);
+    });
+  }, []);
+
+  useSocket('item:created', handleItemCreated);
+  useSocket('item:updated', handleItemUpdated);
+  useSocket('item:deleted', handleItemDeleted);
 
   return {
     items,
