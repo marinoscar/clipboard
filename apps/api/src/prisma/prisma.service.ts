@@ -23,8 +23,8 @@ export class PrismaService
     this.logger.log('Database connected');
 
     // Enable WAL mode for better concurrent access
-    await this.$executeRawUnsafe('PRAGMA journal_mode=WAL;');
-    await this.$executeRawUnsafe('PRAGMA foreign_keys=ON;');
+    await this.$queryRawUnsafe('PRAGMA journal_mode=WAL;');
+    await this.$queryRawUnsafe('PRAGMA foreign_keys=ON;');
 
     // Log queries in development
     if (process.env.NODE_ENV === 'development') {
