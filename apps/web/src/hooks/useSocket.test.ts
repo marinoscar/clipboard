@@ -6,6 +6,7 @@ import { useSocket } from './useSocket';
 const mockSocket = {
   on: vi.fn(),
   off: vi.fn(),
+  connected: false,
 };
 
 vi.mock('../contexts/SocketContext', () => ({
@@ -28,7 +29,8 @@ describe('useSocket', () => {
 
     renderHook(() => useSocket('clipboard:new', handler));
 
-    expect(mockSocket.on).toHaveBeenCalledWith('clipboard:new', handler);
+    expect(mockSocket.on).toHaveBeenCalledTimes(1);
+    expect(mockSocket.on).toHaveBeenCalledWith('clipboard:new', expect.any(Function));
   });
 
   it('should unsubscribe on unmount', () => {
@@ -36,9 +38,12 @@ describe('useSocket', () => {
 
     const { unmount } = renderHook(() => useSocket('clipboard:new', handler));
 
+    // Capture the wrappedHandler that was registered
+    const registeredHandler = mockSocket.on.mock.calls[0][1];
+
     unmount();
 
-    expect(mockSocket.off).toHaveBeenCalledWith('clipboard:new', handler);
+    expect(mockSocket.off).toHaveBeenCalledWith('clipboard:new', registeredHandler);
   });
 
   it('should not subscribe when socket is null', () => {
@@ -59,14 +64,17 @@ describe('useSocket', () => {
       { initialProps: { event: 'clipboard:new' } },
     );
 
-    expect(mockSocket.on).toHaveBeenCalledWith('clipboard:new', handler);
+    expect(mockSocket.on).toHaveBeenCalledWith('clipboard:new', expect.any(Function));
     expect(mockSocket.on).toHaveBeenCalledTimes(1);
+
+    // Capture the first wrappedHandler
+    const firstHandler = mockSocket.on.mock.calls[0][1];
 
     rerender({ event: 'clipboard:delete' });
 
-    // Old listener removed, new one registered
-    expect(mockSocket.off).toHaveBeenCalledWith('clipboard:new', handler);
-    expect(mockSocket.on).toHaveBeenCalledWith('clipboard:delete', handler);
+    // Old listener removed with the same wrapped handler, new one registered
+    expect(mockSocket.off).toHaveBeenCalledWith('clipboard:new', firstHandler);
+    expect(mockSocket.on).toHaveBeenCalledWith('clipboard:delete', expect.any(Function));
     expect(mockSocket.on).toHaveBeenCalledTimes(2);
   });
 
@@ -80,11 +88,27 @@ describe('useSocket', () => {
       { initialProps: { handler: handler1 } },
     );
 
-    expect(mockSocket.on).toHaveBeenCalledWith('clipboard:new', handler1);
+    expect(mockSocket.on).toHaveBeenCalledWith('clipboard:new', expect.any(Function));
+
+    // Capture the first wrappedHandler
+    const firstWrapped = mockSocket.on.mock.calls[0][1];
 
     rerender({ handler: handler2 });
 
-    expect(mockSocket.off).toHaveBeenCalledWith('clipboard:new', handler1);
-    expect(mockSocket.on).toHaveBeenCalledWith('clipboard:new', handler2);
+    expect(mockSocket.off).toHaveBeenCalledWith('clipboard:new', firstWrapped);
+    expect(mockSocket.on).toHaveBeenCalledWith('clipboard:new', expect.any(Function));
+  });
+
+  it('should forward received data to the original handler', () => {
+    const handler = vi.fn();
+
+    renderHook(() => useSocket('clipboard:new', handler));
+
+    // Get the wrappedHandler and invoke it
+    const wrappedHandler = mockSocket.on.mock.calls[0][1];
+    const testData = { id: '123', content: 'test' };
+    wrappedHandler(testData);
+
+    expect(handler).toHaveBeenCalledWith(testData);
   });
 });
