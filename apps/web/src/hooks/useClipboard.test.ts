@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useClipboard } from './useClipboard';
-import type { ClipboardItem, PaginatedResponse } from '../types';
+import type { ClipboardItem, ClipboardQuery, PaginatedResponse } from '../types';
 
 vi.mock('../services/api', () => ({
   getClipboardItems: vi.fn(),
@@ -189,7 +189,7 @@ describe('useClipboard', () => {
     mockedGetClipboardItems.mockResolvedValue(makePagedResponse([]));
 
     const { rerender } = renderHook(
-      ({ query }) => useClipboard(query),
+      ({ query }: { query?: ClipboardQuery }) => useClipboard(query),
       { initialProps: { query: { type: 'text' as const } } },
     );
 
@@ -199,7 +199,7 @@ describe('useClipboard', () => {
 
     mockedGetClipboardItems.mockResolvedValue(makePagedResponse([]));
 
-    rerender({ query: { type: 'file' as const } });
+    rerender({ query: { type: 'file' } });
 
     await waitFor(() =>
       expect(mockedGetClipboardItems).toHaveBeenCalledWith({ type: 'file', page: 1 }),
