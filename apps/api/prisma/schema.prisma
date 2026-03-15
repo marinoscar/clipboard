@@ -1,0 +1,91 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id              String   @id @default(uuid())
+  email           String   @unique
+  displayName     String?  @map("display_name")
+  profileImageUrl String?  @map("profile_image_url")
+  googleId        String   @unique @map("google_id")
+  isActive        Boolean  @default(true) @map("is_active")
+  isAdmin         Boolean  @default(false) @map("is_admin")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  refreshTokens  RefreshToken[]
+  clipboardItems ClipboardItem[]
+
+  @@map("users")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  tokenHash String    @unique @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  revokedAt DateTime? @map("revoked_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}
+
+model ClipboardItem {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  type         String   // text, image, file, media
+  content      String?  // Text content (for text type)
+  fileName     String?  @map("file_name")
+  fileSize     Int?     @map("file_size")
+  mimeType     String?  @map("mime_type")
+  storageKey   String?  @map("storage_key")
+  thumbnailKey String?  @map("thumbnail_key")
+  metadata     String?  // JSON string
+  status       String   @default("active") // active, archived, deleted
+  isPublic     Boolean  @default(false) @map("is_public")
+  shareToken   String?  @unique @map("share_token")
+  s3UploadId   String?  @map("s3_upload_id")
+  uploadStatus String?  @map("upload_status") // pending, uploading, complete, failed
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  uploadChunks UploadChunk[]
+
+  @@index([userId, status])
+  @@index([userId, createdAt])
+  @@index([shareToken])
+  @@map("clipboard_items")
+}
+
+model UploadChunk {
+  id         String   @id @default(uuid())
+  itemId     String   @map("item_id")
+  partNumber Int      @map("part_number")
+  eTag       String   @map("e_tag")
+  size       Int
+  uploadedAt DateTime @default(now()) @map("uploaded_at")
+
+  item ClipboardItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+
+  @@unique([itemId, partNumber])
+  @@map("upload_chunks")
+}
+
+model SystemSettings {
+  id        String   @id @default(uuid())
+  key       String   @unique
+  value     String   // JSON string
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}

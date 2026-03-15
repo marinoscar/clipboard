@@ -1,0 +1,20 @@
+{
+  "name": "clipboard",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "api:dev": "npm run start:dev -w apps/api",
+    "api:build": "npm run build -w apps/api",
+    "api:start": "npm run start:prod -w apps/api",
+    "web:dev": "npm run dev -w apps/web",
+    "web:build": "npm run build -w apps/web",
+    "prisma:generate": "npm run prisma:generate -w apps/api",
+    "prisma:migrate": "npm run prisma:migrate:dev -w apps/api",
+    "prisma:studio": "npm run prisma:studio -w apps/api",
+    "docker:dev": "docker compose -f infra/compose/base.compose.yml -f infra/compose/dev.compose.yml up --build",
+    "docker:prod": "docker compose -f infra/compose/base.compose.yml -f infra/compose/prod.compose.yml up --build -d"
+  }
+}

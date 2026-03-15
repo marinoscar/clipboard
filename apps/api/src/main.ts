@@ -1,0 +1,70 @@
+import { NestFactory } from '@nestjs/core';
+import {
+  FastifyAdapter,
+  NestFastifyApplication,
+} from '@nestjs/platform-fastify';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { Logger } from '@nestjs/common';
+import fastifyCookie from '@fastify/cookie';
+import multipart from '@fastify/multipart';
+import { AppModule } from './app.module';
+
+async function bootstrap() {
+  const logger = new Logger('Bootstrap');
+
+  const app = await NestFactory.create<NestFastifyApplication>(
+    AppModule,
+    new FastifyAdapter({ logger: true }),
+  );
+
+  // Register cookie plugin
+  await app.register(fastifyCookie, {
+    secret: process.env.COOKIE_SECRET || process.env.JWT_SECRET,
+  });
+
+  // Register multipart plugin for file uploads
+  await app.register(multipart, {
+    limits: {
+      fileSize: 100 * 1024 * 1024, // 100MB for simple upload
+      files: 1,
+    },
+  });
+
+  // Global prefix for all routes
+  app.setGlobalPrefix('api');
+
+  // Enable CORS
+  app.enableCors({
+    origin: process.env.CORS_ORIGIN || true,
+    credentials: true,
+  });
+
+  // Swagger/OpenAPI setup
+  const config = new DocumentBuilder()
+    .setTitle('Clipboard API')
+    .setDescription('API documentation for the Clipboard application')
+    .setVersion('1.0')
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'Enter JWT token',
+      },
+      'JWT-auth',
+    )
+    .build();
+
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api/docs', app, document, {
+    jsonDocumentUrl: 'api/openapi.json',
+  });
+
+  const port = process.env.PORT || 3000;
+  await app.listen(port, '0.0.0.0');
+
+  logger.log(`Application running on port ${port}`);
+  logger.log(`Swagger UI available at /api/docs`);
+}
+
+bootstrap();

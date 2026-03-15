@@ -1,0 +1,83 @@
+# =============================================================================
+# Docker Compose - Base Services
+# =============================================================================
+# Usage (run from project root):
+#   docker compose -f infra/compose/base.compose.yml -f infra/compose/dev.compose.yml up
+#
+# Production:
+#   docker compose -f infra/compose/base.compose.yml -f infra/compose/prod.compose.yml up
+#
+# Note: .env file should be in infra/compose/
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Nginx - Reverse Proxy
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "8320:80"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - web
+    networks:
+      - app-network
+
+  # ---------------------------------------------------------------------------
+  # API - NestJS Backend
+  # ---------------------------------------------------------------------------
+  api:
+    build:
+      context: ../../apps/api
+      dockerfile: Dockerfile
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - PORT=${PORT:-3000}
+      - APP_URL=${APP_URL:-http://localhost:8320}
+      - DATABASE_URL=${DATABASE_URL:-file:/data/clipboard.db}
+      # JWT
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ACCESS_TTL_MINUTES=${JWT_ACCESS_TTL_MINUTES:-15}
+      - JWT_REFRESH_TTL_DAYS=${JWT_REFRESH_TTL_DAYS:-14}
+      # OAuth - Google
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - GOOGLE_CALLBACK_URL=${GOOGLE_CALLBACK_URL}
+      # AWS S3
+      - S3_BUCKET=${S3_BUCKET}
+      - S3_REGION=${S3_REGION}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      # Admin bootstrap
+      - INITIAL_ADMIN_EMAIL=${INITIAL_ADMIN_EMAIL}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+    volumes:
+      - sqlite-data:/data
+    networks:
+      - app-network
+
+  # ---------------------------------------------------------------------------
+  # Web - React Frontend
+  # ---------------------------------------------------------------------------
+  web:
+    build:
+      context: ../../apps/web
+      dockerfile: Dockerfile
+    networks:
+      - app-network
+
+# =============================================================================
+# Networks
+# =============================================================================
+networks:
+  app-network:
+    driver: bridge
+
+# =============================================================================
+# Volumes
+# =============================================================================
+volumes:
+  sqlite-data:

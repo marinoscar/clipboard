@@ -1,0 +1,22 @@
+# =============================================================================
+# Docker Compose - Production Overrides
+# =============================================================================
+
+services:
+  nginx:
+    restart: unless-stopped
+
+  api:
+    build:
+      target: production
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+
+  web:
+    build:
+      target: production
+    restart: unless-stopped
