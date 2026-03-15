@@ -3,6 +3,13 @@ import { ClipboardItem, ClipboardQuery, PaginatedResponse } from '../types';
 import { getClipboardItems, deleteClipboardItem } from '../services/api';
 import { useSocket } from './useSocket';
 
+/** Sort items newest-first by createdAt */
+function sortNewestFirst(items: ClipboardItem[]): ClipboardItem[] {
+  return [...items].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+}
+
 export function useClipboard(query?: ClipboardQuery) {
   const [items, setItems] = useState<ClipboardItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -55,16 +62,15 @@ export function useClipboard(query?: ClipboardQuery) {
   }, []);
 
   const addItem = useCallback((item: ClipboardItem) => {
-    setItems((prev) => [item, ...prev]);
+    setItems((prev) => sortNewestFirst([item, ...prev]));
     setTotal((prev) => prev + 1);
   }, []);
 
   // Real-time socket event handlers
   const handleItemCreated = useCallback((item: ClipboardItem) => {
     setItems((prev) => {
-      // Avoid duplicates when the same user created the item locally
       if (prev.some((i) => i.id === item.id)) return prev;
-      return [item, ...prev];
+      return sortNewestFirst([item, ...prev]);
     });
     setTotal((prev) => prev + 1);
   }, []);
