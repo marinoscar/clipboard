@@ -1,3 +1,5 @@
+import type { ClipboardItem, ClipboardQuery, PaginatedResponse } from '../types';
+
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
 
 interface RequestOptions extends RequestInit {
@@ -184,3 +186,61 @@ export class ApiError extends Error {
 }
 
 export const api = new ApiService();
+
+// Clipboard API
+
+export async function createTextItem(content: string): Promise<ClipboardItem> {
+  return api.post<ClipboardItem>('/clipboard', { type: 'text', content });
+}
+
+export async function uploadFile(file: File): Promise<ClipboardItem> {
+  const formData = new FormData();
+  formData.append('file', file);
+  const token = api.getAccessToken();
+  const response = await fetch(`${API_BASE_URL}/clipboard/upload`, {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: formData,
+    credentials: 'include',
+  });
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new ApiError(error.message || 'Upload failed', response.status);
+  }
+  const data = await response.json();
+  return data.data ?? data;
+}
+
+export async function getClipboardItems(
+  query?: ClipboardQuery,
+): Promise<PaginatedResponse<ClipboardItem>> {
+  const params = new URLSearchParams();
+  if (query) {
+    Object.entries(query).forEach(([key, value]) => {
+      if (value !== undefined) params.set(key, String(value));
+    });
+  }
+  const qs = params.toString();
+  return api.get<PaginatedResponse<ClipboardItem>>(
+    `/clipboard${qs ? `?${qs}` : ''}`,
+  );
+}
+
+export async function getClipboardItem(id: string): Promise<ClipboardItem> {
+  return api.get<ClipboardItem>(`/clipboard/${id}`);
+}
+
+export async function updateClipboardItem(
+  id: string,
+  data: { content?: string; status?: string },
+): Promise<ClipboardItem> {
+  return api.patch<ClipboardItem>(`/clipboard/${id}`, data);
+}
+
+export async function deleteClipboardItem(id: string): Promise<void> {
+  return api.delete<void>(`/clipboard/${id}`);
+}
+
+export async function getDownloadUrl(id: string): Promise<{ url: string }> {
+  return api.get<{ url: string }>(`/clipboard/${id}/download`);
+}

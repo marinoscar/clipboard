@@ -12,7 +12,7 @@ import { LoadingSpinner } from './components/common/LoadingSpinner';
 
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'));
-const HomePage = lazy(() => import('./pages/HomePage'));
+const ClipboardPage = lazy(() => import('./pages/ClipboardPage'));
 
 function AppRoutes() {
   const { theme } = useThemeContext();
@@ -30,7 +30,7 @@ function AppRoutes() {
             {/* Protected routes */}
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
-                <Route path="/" element={<HomePage />} />
+                <Route path="/" element={<ClipboardPage />} />
               </Route>
             </Route>
 
