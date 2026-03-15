@@ -27,10 +27,15 @@ export function AppHeader() {
       sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
     >
       <Toolbar>
-        <ClipboardIcon sx={{ mr: 1 }} />
-        <Typography variant="h6" component="div" sx={{ flexGrow: 0, mr: 2 }}>
-          Clipboard
-        </Typography>
+        <Box
+          onClick={() => navigate('/')}
+          sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', mr: 2 }}
+        >
+          <ClipboardIcon sx={{ mr: 1 }} />
+          <Typography variant="h6" component="div">
+            Clipboard
+          </Typography>
+        </Box>
 
         <Box sx={{ flexGrow: 1 }} />
 

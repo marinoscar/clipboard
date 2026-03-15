@@ -7,6 +7,7 @@ import Stack from '@mui/material/Stack';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import Button from '@mui/material/Button';
+import IconButton from '@mui/material/IconButton';
 import Dialog from '@mui/material/Dialog';
 import DialogTitle from '@mui/material/DialogTitle';
 import DialogContent from '@mui/material/DialogContent';
@@ -16,6 +17,8 @@ import Inventory2 from '@mui/icons-material/Inventory2';
 import Unarchive from '@mui/icons-material/Unarchive';
 import DeleteForever from '@mui/icons-material/DeleteForever';
 import DeleteSweep from '@mui/icons-material/DeleteSweep';
+import ArrowBack from '@mui/icons-material/ArrowBack';
+import { useNavigate } from 'react-router-dom';
 import { ClipboardItem, ClipboardQuery } from '../types';
 import { useClipboard } from '../hooks/useClipboard';
 import { batchOperation, getSystemSettings } from '../services/api';
@@ -35,6 +38,7 @@ const TYPE_FILTERS: { label: string; value: TypeFilter }[] = [
 ];
 
 export default function ArchivePage() {
+  const navigate = useNavigate();
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [selectedItem, setSelectedItem] = useState<ClipboardItem | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -194,6 +198,9 @@ export default function ArchivePage() {
         }}
       >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+          <IconButton onClick={() => navigate('/')} size="small" sx={{ mr: 0.5 }}>
+            <ArrowBack />
+          </IconButton>
           <Inventory2 sx={{ fontSize: 32, color: 'text.secondary' }} />
           <Box>
             <Typography variant="h5" fontWeight={600}>
