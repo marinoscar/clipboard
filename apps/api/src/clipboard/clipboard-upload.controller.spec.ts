@@ -137,7 +137,7 @@ describe('ClipboardUploadController', () => {
         uploadStatus: 'complete',
         status: 'active',
       };
-      uploadService.completeUpload.mockResolvedValue(completedItem);
+      uploadService.completeUpload.mockResolvedValue(completedItem as any);
 
       const result = await controller.completeUpload(ITEM_ID, dto, mockRequestUser);
 
@@ -159,7 +159,7 @@ describe('ClipboardUploadController', () => {
         uploadStatus: 'failed',
         status: 'active',
       };
-      uploadService.abortUpload.mockResolvedValue(abortedItem);
+      uploadService.abortUpload.mockResolvedValue(abortedItem as any);
 
       const result = await controller.abortUpload(ITEM_ID, mockRequestUser);
 
