@@ -9,6 +9,7 @@ import { AuthModule } from './auth/auth.module';
 import { HealthModule } from './health/health.module';
 import { StorageModule } from './storage/storage.module';
 import { ClipboardModule } from './clipboard/clipboard.module';
+import { EventsModule } from './gateway/events.module';
 
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
@@ -30,6 +31,7 @@ import configuration from './config/configuration';
     HealthModule,
     StorageModule,
     ClipboardModule,
+    EventsModule,
   ],
   providers: [
     // Global JWT guard (routes must use @Public() to opt out)

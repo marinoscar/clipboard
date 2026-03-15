@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3StorageProvider } from '../storage/s3-storage.provider';
+import { EventsGateway } from '../gateway/events.gateway';
 import { ClipboardQueryDto } from './dto/clipboard-query.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { Prisma } from '@prisma/client';
@@ -31,6 +32,7 @@ export class ClipboardService {
     private readonly prisma: PrismaService,
     private readonly s3: S3StorageProvider,
     private readonly configService: ConfigService,
+    private readonly events: EventsGateway,
   ) {}
 
   async createTextItem(userId: string, content: string) {
@@ -49,6 +51,7 @@ export class ClipboardService {
     });
 
     this.logger.log(`Text item created: ${item.id}`);
+    this.events.emitToUser(userId, 'item:created', item);
     return item;
   }
 
@@ -79,6 +82,7 @@ export class ClipboardService {
     });
 
     this.logger.log(`File item created: ${item.id} (${type})`);
+    this.events.emitToUser(userId, 'item:created', item);
     return item;
   }
 
@@ -160,6 +164,7 @@ export class ClipboardService {
     });
 
     this.logger.debug(`Item updated: ${itemId}`);
+    this.events.emitToUser(userId, 'item:updated', updated);
     return updated;
   }
 
@@ -173,6 +178,7 @@ export class ClipboardService {
     });
 
     this.logger.debug(`Item soft-deleted: ${itemId}`);
+    this.events.emitToUser(userId, 'item:deleted', { id: itemId });
     return deleted;
   }
 

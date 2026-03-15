@@ -6,6 +6,10 @@ import {
   GetObjectCommand,
   DeleteObjectCommand,
   HeadObjectCommand,
+  CreateMultipartUploadCommand,
+  UploadPartCommand,
+  CompleteMultipartUploadCommand,
+  AbortMultipartUploadCommand,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
@@ -73,6 +77,74 @@ export class S3StorageProvider {
     );
 
     this.logger.debug(`Delete complete: ${key}`);
+  }
+
+  async initMultipartUpload(key: string, contentType: string): Promise<string> {
+    this.logger.debug(`Initiating multipart upload: ${key}`);
+
+    const response = await this.s3Client.send(
+      new CreateMultipartUploadCommand({
+        Bucket: this.bucket,
+        Key: key,
+        ContentType: contentType,
+      }),
+    );
+
+    if (!response.UploadId) {
+      throw new Error(`S3 did not return an UploadId for key: ${key}`);
+    }
+
+    this.logger.debug(`Multipart upload initiated: ${key} uploadId=${response.UploadId}`);
+    return response.UploadId;
+  }
+
+  async getSignedPartUrl(key: string, uploadId: string, partNumber: number): Promise<string> {
+    const expiry = this.configService.get<number>('storage.signedUrlExpiry', 3600);
+
+    const command = new UploadPartCommand({
+      Bucket: this.bucket,
+      Key: key,
+      UploadId: uploadId,
+      PartNumber: partNumber,
+    });
+
+    const url = await getSignedUrl(this.s3Client, command, { expiresIn: expiry });
+
+    this.logger.debug(`Generated presigned part URL: ${key} part=${partNumber}`);
+    return url;
+  }
+
+  async completeMultipartUpload(
+    key: string,
+    uploadId: string,
+    parts: { PartNumber: number; ETag: string }[],
+  ): Promise<void> {
+    this.logger.debug(`Completing multipart upload: ${key} parts=${parts.length}`);
+
+    await this.s3Client.send(
+      new CompleteMultipartUploadCommand({
+        Bucket: this.bucket,
+        Key: key,
+        UploadId: uploadId,
+        MultipartUpload: { Parts: parts },
+      }),
+    );
+
+    this.logger.debug(`Multipart upload complete: ${key}`);
+  }
+
+  async abortMultipartUpload(key: string, uploadId: string): Promise<void> {
+    this.logger.debug(`Aborting multipart upload: ${key} uploadId=${uploadId}`);
+
+    await this.s3Client.send(
+      new AbortMultipartUploadCommand({
+        Bucket: this.bucket,
+        Key: key,
+        UploadId: uploadId,
+      }),
+    );
+
+    this.logger.debug(`Multipart upload aborted: ${key}`);
   }
 
   async exists(key: string): Promise<boolean> {
