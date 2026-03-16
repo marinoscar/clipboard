@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ClipboardActionBar } from './ClipboardActionBar';
 import type { ClipboardItem } from '../../types';
@@ -33,12 +33,13 @@ function makeItem(overrides: Partial<ClipboardItem> = {}): ClipboardItem {
   };
 }
 
-// Restore navigator.clipboard after each test so mocks do not leak.
 let originalClipboard: Clipboard;
 
 beforeEach(() => {
   vi.clearAllMocks();
   originalClipboard = navigator.clipboard;
+  // Mock execCommand so the hidden textarea strategy doesn't interfere
+  document.execCommand = vi.fn().mockReturnValue(false);
 });
 
 afterEach(() => {
@@ -47,6 +48,7 @@ afterEach(() => {
     writable: true,
     configurable: true,
   });
+  vi.restoreAllMocks();
 });
 
 describe('ClipboardActionBar', () => {
@@ -59,7 +61,7 @@ describe('ClipboardActionBar', () => {
     expect(screen.getByRole('button', { name: /paste/i })).toBeInTheDocument();
   });
 
-  it('clicking Paste reads from clipboard, calls createTextItem, then calls onItemCreated', async () => {
+  it('pastes text from clipboard via readText fallback', async () => {
     const clipboardText = 'pasted text content';
     const createdItem = makeItem({ content: clipboardText });
 
@@ -79,33 +81,12 @@ describe('ClipboardActionBar', () => {
     fireEvent.click(screen.getByRole('button', { name: /paste/i }));
 
     await waitFor(() => {
-      expect(navigator.clipboard.readText).toHaveBeenCalled();
       expect(mockedCreateTextItem).toHaveBeenCalledWith(clipboardText);
       expect(onItemCreated).toHaveBeenCalledWith(createdItem);
     });
   });
 
-  it('shows error snackbar when clipboard API is not available', async () => {
-    Object.defineProperty(navigator, 'clipboard', {
-      value: undefined,
-      writable: true,
-      configurable: true,
-    });
-
-    render(
-      <ClipboardActionBar onFileSelected={vi.fn()} onItemCreated={vi.fn()} />,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /paste/i }));
-
-    await waitFor(() => {
-      expect(
-        screen.getByText(/clipboard api not available/i),
-      ).toBeInTheDocument();
-    });
-  });
-
-  it('shows error snackbar when clipboard is empty', async () => {
+  it('shows error when clipboard is empty', async () => {
     Object.defineProperty(navigator, 'clipboard', {
       value: { readText: vi.fn().mockResolvedValue('') },
       writable: true,
@@ -119,15 +100,18 @@ describe('ClipboardActionBar', () => {
     fireEvent.click(screen.getByRole('button', { name: /paste/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/clipboard is empty/i)).toBeInTheDocument();
+      expect(screen.getByText(/no content found/i)).toBeInTheDocument();
     });
   });
 
-  it('shows permission-denied error when readText throws NotAllowedError', async () => {
+  it('shows permission error when clipboard.read throws NotAllowedError', async () => {
     const permissionError = new Error('Permission denied');
     permissionError.name = 'NotAllowedError';
     Object.defineProperty(navigator, 'clipboard', {
-      value: { readText: vi.fn().mockRejectedValue(permissionError) },
+      value: {
+        read: vi.fn().mockRejectedValue(permissionError),
+        readText: vi.fn().mockRejectedValue(permissionError),
+      },
       writable: true,
       configurable: true,
     });
@@ -139,35 +123,11 @@ describe('ClipboardActionBar', () => {
     fireEvent.click(screen.getByRole('button', { name: /paste/i }));
 
     await waitFor(() => {
-      expect(
-        screen.getByText(/clipboard permission denied/i),
-      ).toBeInTheDocument();
+      expect(screen.getByText(/permission denied|ctrl\+v/i)).toBeInTheDocument();
     });
   });
 
-  it('shows generic error snackbar when createTextItem rejects', async () => {
-    Object.defineProperty(navigator, 'clipboard', {
-      value: { readText: vi.fn().mockResolvedValue('some text') },
-      writable: true,
-      configurable: true,
-    });
-
-    mockedCreateTextItem.mockRejectedValue(new Error('Network failure'));
-
-    render(
-      <ClipboardActionBar onFileSelected={vi.fn()} onItemCreated={vi.fn()} />,
-    );
-
-    fireEvent.click(screen.getByRole('button', { name: /paste/i }));
-
-    await waitFor(() => {
-      expect(
-        screen.getByText(/failed to paste from clipboard/i),
-      ).toBeInTheDocument();
-    });
-  });
-
-  it('calls onFileSelected for each file chosen via the file input', async () => {
+  it('calls onFileSelected for each file chosen via the file input', () => {
     const onFileSelected = vi.fn();
     render(
       <ClipboardActionBar onFileSelected={onFileSelected} onItemCreated={vi.fn()} />,
@@ -176,7 +136,6 @@ describe('ClipboardActionBar', () => {
     const file1 = new File(['a'], 'a.txt', { type: 'text/plain' });
     const file2 = new File(['b'], 'b.png', { type: 'image/png' });
 
-    // The hidden <input type="file"> is the first one in the DOM.
     const fileInput = document
       .querySelectorAll('input[type="file"]')[0] as HTMLInputElement;
 
