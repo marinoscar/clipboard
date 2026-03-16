@@ -38,31 +38,19 @@ export function ClipboardActionBar({ onFileSelected, onItemCreated }: ClipboardA
   );
 
   const handlePaste = useCallback(async () => {
-    const log: string[] = [];
-
     if (!navigator.clipboard) {
-      setError('[DEBUG] navigator.clipboard is undefined');
+      setError('Clipboard API not available on this browser.');
       return;
     }
-    log.push('clipboard API exists');
 
     // Strategy 1: Try clipboard.read() for images/blobs
     if (navigator.clipboard.read) {
-      log.push('clipboard.read exists, calling...');
       try {
         const clipboardItems = await navigator.clipboard.read();
-        log.push(`clipboard.read returned ${clipboardItems.length} item(s)`);
-        for (let i = 0; i < clipboardItems.length; i++) {
-          const clipItem = clipboardItems[i];
-          log.push(`  item[${i}] types: [${clipItem.types.join(', ')}]`);
+        for (const clipItem of clipboardItems) {
           for (const type of clipItem.types) {
-            if (type === 'text/plain' || type === 'text/html') {
-              log.push(`  skipping ${type}`);
-              continue;
-            }
-            log.push(`  processing blob type: ${type}`);
+            if (type === 'text/plain' || type === 'text/html') continue;
             const blob = await clipItem.getType(type);
-            log.push(`  blob size: ${blob.size}`);
             const ext = type.split('/')[1]?.split(';')[0] || 'bin';
             const fileName = type.startsWith('image/')
               ? `clipboard-image.${ext}`
@@ -72,34 +60,32 @@ export function ClipboardActionBar({ onFileSelected, onItemCreated }: ClipboardA
             return;
           }
         }
-        log.push('clipboard.read: no usable blob types found');
-      } catch (err) {
-        log.push(`clipboard.read threw: ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`);
+      } catch {
+        // clipboard.read() failed — fall through to text
       }
-    } else {
-      log.push('clipboard.read NOT available');
     }
 
     // Strategy 2: Try readText() for plain text
     if (navigator.clipboard.readText) {
-      log.push('clipboard.readText exists, calling...');
       try {
         const text = await navigator.clipboard.readText();
-        log.push(`readText returned: "${text ? text.slice(0, 50) : '(empty)'}" (len=${text?.length ?? 0})`);
         if (text) {
+          // Detect if text looks like a file path (Windows Explorer copy)
+          const looksLikeFilePath = /^[A-Z]:\\/.test(text.trim()) || /^\/[\w]/.test(text.trim());
+          if (looksLikeFilePath) {
+            setError('File paths cannot be pasted directly. Use Ctrl+V or the Upload button instead.');
+            return;
+          }
           const item = await createTextItem(text);
           onItemCreated(item);
           return;
         }
-      } catch (err) {
-        log.push(`readText threw: ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`);
+      } catch {
+        // readText() failed — fall through to error
       }
-    } else {
-      log.push('clipboard.readText NOT available');
     }
 
-    // Show debug info in the error message
-    setError(`Paste debug:\n${log.join('\n')}`);
+    setError('No content found. For files, use Ctrl+V or the Upload button.');
   }, [onFileSelected, onItemCreated]);
 
   return (
