@@ -2,6 +2,7 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
+import { SocketProvider } from './contexts/SocketContext';
 import { ThemeContextProvider, useThemeContext } from './contexts/ThemeContext';
 import { ProtectedRoute } from './components/common/ProtectedRoute';
 import { Layout } from './components/common/Layout';
@@ -13,6 +14,10 @@ import { LoadingSpinner } from './components/common/LoadingSpinner';
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const AuthCallbackPage = lazy(() => import('./pages/AuthCallbackPage'));
 const ClipboardPage = lazy(() => import('./pages/ClipboardPage'));
+const PublicItemPage = lazy(() => import('./pages/PublicItemPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const ArchivePage = lazy(() => import('./pages/ArchivePage'));
+const ShareTargetPage = lazy(() => import('./pages/ShareTargetPage'));
 
 function AppRoutes() {
   const { theme } = useThemeContext();
@@ -26,11 +31,15 @@ function AppRoutes() {
             {/* Public routes */}
             <Route path="/login" element={<LoginPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
+            <Route path="/share/:shareToken" element={<PublicItemPage />} />
 
             {/* Protected routes */}
             <Route element={<ProtectedRoute />}>
               <Route element={<Layout />}>
                 <Route path="/" element={<ClipboardPage />} />
+                <Route path="/archive" element={<ArchivePage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/share-target" element={<ShareTargetPage />} />
               </Route>
             </Route>
 
@@ -47,7 +56,9 @@ export default function App() {
   return (
     <ThemeContextProvider>
       <AuthProvider>
-        <AppRoutes />
+        <SocketProvider>
+          <AppRoutes />
+        </SocketProvider>
       </AuthProvider>
     </ThemeContextProvider>
   );

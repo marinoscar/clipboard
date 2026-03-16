@@ -13,12 +13,17 @@ import {
 import {
   Logout as LogoutIcon,
   Settings as SettingsIcon,
+  Inventory2 as ArchiveIcon,
+  Brightness4 as DarkModeIcon,
+  Brightness7 as LightModeIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useThemeContext } from '../../contexts/ThemeContext';
 
 export function UserMenu() {
   const { user, logout } = useAuth();
+  const { isDarkMode, toggleMode } = useThemeContext();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
@@ -27,6 +32,13 @@ export function UserMenu() {
   const initials = user.displayName
     ? user.displayName.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : user.email[0].toUpperCase();
+
+  const handleClose = () => setAnchorEl(null);
+
+  const handleNavigate = (path: string) => {
+    handleClose();
+    navigate(path);
+  };
 
   return (
     <>
@@ -42,7 +54,7 @@ export function UserMenu() {
       <Menu
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
-        onClose={() => setAnchorEl(null)}
+        onClose={handleClose}
         transformOrigin={{ horizontal: 'right', vertical: 'top' }}
         anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
       >
@@ -55,14 +67,28 @@ export function UserMenu() {
 
         <Divider />
 
+        <MenuItem onClick={() => handleNavigate('/archive')}>
+          <ListItemIcon><ArchiveIcon fontSize="small" /></ListItemIcon>
+          <ListItemText>Archive</ListItemText>
+        </MenuItem>
+
         {user.isAdmin && (
-          <MenuItem onClick={() => { setAnchorEl(null); navigate('/settings'); }}>
+          <MenuItem onClick={() => handleNavigate('/settings')}>
             <ListItemIcon><SettingsIcon fontSize="small" /></ListItemIcon>
             <ListItemText>Settings</ListItemText>
           </MenuItem>
         )}
 
-        <MenuItem onClick={() => { setAnchorEl(null); logout(); }}>
+        <MenuItem onClick={() => { toggleMode(); handleClose(); }}>
+          <ListItemIcon>
+            {isDarkMode ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
+          </ListItemIcon>
+          <ListItemText>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</ListItemText>
+        </MenuItem>
+
+        <Divider />
+
+        <MenuItem onClick={() => { handleClose(); logout(); }}>
           <ListItemIcon><LogoutIcon fontSize="small" /></ListItemIcon>
           <ListItemText>Logout</ListItemText>
         </MenuItem>

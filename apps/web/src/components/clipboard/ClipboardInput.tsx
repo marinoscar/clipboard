@@ -3,19 +3,24 @@ import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
 import Button from '@mui/material/Button';
+import Stack from '@mui/material/Stack';
 import CircularProgress from '@mui/material/CircularProgress';
 import CloudUpload from '@mui/icons-material/CloudUpload';
 import ContentPaste from '@mui/icons-material/ContentPaste';
+import CameraAlt from '@mui/icons-material/CameraAlt';
 import { ClipboardItem } from '../../types';
 import { useFileUpload } from '../../hooks/useFileUpload';
 
 interface ClipboardInputProps {
   onItemCreated: (item: ClipboardItem) => void;
+  /** Called with the raw File before upload begins; parent can intercept for large files. */
+  onFileSelected?: (file: File) => boolean;
 }
 
-export function ClipboardInput({ onItemCreated }: ClipboardInputProps) {
+export function ClipboardInput({ onItemCreated, onFileSelected }: ClipboardInputProps) {
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const { upload, isUploading, error } = useFileUpload();
 
   const handleDragEnter = (e: DragEvent<HTMLDivElement>) => {
@@ -47,6 +52,8 @@ export function ClipboardInput({ onItemCreated }: ClipboardInputProps) {
     if (files.length === 0) return;
 
     for (const file of files) {
+      // If parent intercepts the file (returns true), skip the default upload
+      if (onFileSelected?.(file)) continue;
       const result = await upload(file);
       if (result) {
         onItemCreated(result);
@@ -57,6 +64,8 @@ export function ClipboardInput({ onItemCreated }: ClipboardInputProps) {
   const handleFileSelect = async (e: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
     for (const file of files) {
+      // If parent intercepts the file (returns true), skip the default upload
+      if (onFileSelected?.(file)) continue;
       const result = await upload(file);
       if (result) {
         onItemCreated(result);
@@ -116,15 +125,26 @@ export function ClipboardInput({ onItemCreated }: ClipboardInputProps) {
                 ? 'Drop files here'
                 : 'Paste anything (Ctrl+V) or drop files here'}
             </Typography>
-            <Button
-              variant="outlined"
-              size="small"
-              startIcon={<CloudUpload />}
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-            >
-              Choose Files
-            </Button>
+            <Stack direction="row" spacing={1}>
+              <Button
+                variant="outlined"
+                startIcon={<CloudUpload />}
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+                sx={{ minHeight: 44 }}
+              >
+                Choose Files
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<CameraAlt />}
+                onClick={() => cameraInputRef.current?.click()}
+                disabled={isUploading}
+                sx={{ minHeight: 44, display: { xs: 'inline-flex', md: 'none' } }}
+              >
+                Camera
+              </Button>
+            </Stack>
           </>
         )}
 
@@ -151,6 +171,14 @@ export function ClipboardInput({ onItemCreated }: ClipboardInputProps) {
         ref={fileInputRef}
         type="file"
         multiple
+        style={{ display: 'none' }}
+        onChange={handleFileSelect}
+      />
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
         style={{ display: 'none' }}
         onChange={handleFileSelect}
       />

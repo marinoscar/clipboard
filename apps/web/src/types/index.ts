@@ -21,6 +21,8 @@ export interface ClipboardItem {
   fileSize: number | null;
   mimeType: string | null;
   storageKey: string | null;
+  uploadStatus: 'pending' | 'uploading' | 'complete' | 'failed' | null;
+  s3UploadId: string | null;
   status: 'active' | 'archived' | 'deleted';
   isPublic: boolean;
   shareToken: string | null;

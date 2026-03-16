@@ -4,17 +4,21 @@ import {
   Typography,
   IconButton,
   Box,
+  Tooltip,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
-  Brightness4 as DarkModeIcon,
-  Brightness7 as LightModeIcon,
   ContentPaste as ClipboardIcon,
+  Inventory2 as ArchiveIcon,
 } from '@mui/icons-material';
-import { useThemeContext } from '../../contexts/ThemeContext';
+import { useNavigate } from 'react-router-dom';
 import { UserMenu } from './UserMenu';
 
 export function AppHeader() {
-  const { isDarkMode, toggleMode } = useThemeContext();
+  const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   return (
     <AppBar
@@ -23,16 +27,26 @@ export function AppHeader() {
       sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}
     >
       <Toolbar>
-        <ClipboardIcon sx={{ mr: 1 }} />
-        <Typography variant="h6" component="div" sx={{ flexGrow: 0, mr: 2 }}>
-          Clipboard
-        </Typography>
+        <Box
+          onClick={() => navigate('/')}
+          sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', mr: 2 }}
+        >
+          <ClipboardIcon sx={{ mr: 1 }} />
+          <Typography variant="h6" component="div">
+            Clipboard
+          </Typography>
+        </Box>
 
         <Box sx={{ flexGrow: 1 }} />
 
-        <IconButton onClick={toggleMode} color="inherit" sx={{ mr: 1 }}>
-          {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
-        </IconButton>
+        {/* Hide archive button on mobile - available in bottom nav */}
+        {!isMobile && (
+          <Tooltip title="Archive">
+            <IconButton onClick={() => navigate('/archive')} color="inherit" sx={{ mr: 0.5 }}>
+              <ArchiveIcon />
+            </IconButton>
+          </Tooltip>
+        )}
 
         <UserMenu />
       </Toolbar>

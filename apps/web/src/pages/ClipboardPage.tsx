@@ -6,13 +6,18 @@ import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
+import Archive from '@mui/icons-material/Archive';
 import { ClipboardItem, ClipboardQuery } from '../types';
 import { useClipboard } from '../hooks/useClipboard';
 import { useClipboardPaste } from '../hooks/useClipboardPaste';
+import { useMultipartUpload } from '../hooks/useMultipartUpload';
+import { batchOperation } from '../services/api';
 import { ClipboardInput } from '../components/clipboard/ClipboardInput';
 import { ClipboardItemList } from '../components/clipboard/ClipboardItemList';
+import { UploadProgress } from '../components/clipboard/UploadProgress';
 import { TextItemView } from '../components/clipboard/TextItemView';
 import { FileItemView } from '../components/clipboard/FileItemView';
+import { SelectionBar } from '../components/clipboard/SelectionBar';
 
 type TypeFilter = 'all' | 'text' | 'image' | 'file' | 'media';
 
@@ -27,6 +32,7 @@ const TYPE_FILTERS: { label: string; value: TypeFilter }[] = [
 export default function ClipboardPage() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [selectedItem, setSelectedItem] = useState<ClipboardItem | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -39,8 +45,17 @@ export default function ClipboardPage() {
     ...(typeFilter !== 'all' ? { type: typeFilter } : {}),
   };
 
-  const { items, isLoading, error, hasMore, loadMore, removeItem, addItem } =
+  const { items, isLoading, error, hasMore, loadMore, refresh, archiveItem, addItem, updateItem } =
     useClipboard(query);
+
+  const {
+    startUpload,
+    abort: abortMultipart,
+    isUploading: isMultipartUploading,
+    progress: multipartProgress,
+    currentFile: multipartFile,
+    isLargeFile,
+  } = useMultipartUpload();
 
   const handleItemCreated = useCallback(
     (item: ClipboardItem) => {
@@ -50,18 +65,40 @@ export default function ClipboardPage() {
     [addItem],
   );
 
+  // Intercept large files: return true to signal ClipboardInput to skip its own upload
+  const handleFileSelected = useCallback(
+    (file: File): boolean => {
+      if (!isLargeFile(file)) return false;
+
+      startUpload(file)
+        .then((item) => handleItemCreated(item))
+        .catch((err: Error) => {
+          if (err.message !== 'Upload cancelled') {
+            setSnackbar({
+              open: true,
+              message: `Upload failed: ${err.message}`,
+              severity: 'error',
+            });
+          }
+        });
+
+      return true;
+    },
+    [isLargeFile, startUpload, handleItemCreated],
+  );
+
   useClipboardPaste(handleItemCreated);
 
-  const handleDelete = useCallback(
+  const handleArchive = useCallback(
     async (id: string) => {
       try {
-        await removeItem(id);
-        setSnackbar({ open: true, message: 'Item deleted.', severity: 'success' });
+        await archiveItem(id);
+        setSnackbar({ open: true, message: 'Item archived.', severity: 'success' });
       } catch {
-        setSnackbar({ open: true, message: 'Failed to delete item.', severity: 'error' });
+        setSnackbar({ open: true, message: 'Failed to archive item.', severity: 'error' });
       }
     },
-    [removeItem],
+    [archiveItem],
   );
 
   const handleItemClick = useCallback((item: ClipboardItem) => {
@@ -76,6 +113,41 @@ export default function ClipboardPage() {
     setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
+  const handleSelectItem = useCallback((id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }, []);
+
+  const handleDeselectAll = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
+  const handleArchiveSelected = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    try {
+      await batchOperation(ids, 'archive');
+      setSelectedIds(new Set());
+      setSnackbar({
+        open: true,
+        message: `${ids.length} item${ids.length !== 1 ? 's' : ''} archived.`,
+        severity: 'success',
+      });
+      refresh();
+    } catch {
+      setSnackbar({ open: true, message: 'Failed to archive selected items.', severity: 'error' });
+    }
+  }, [selectedIds, refresh]);
+
+  const selectionMode = selectedIds.size > 0;
+
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
       {/* Page header */}
@@ -89,7 +161,20 @@ export default function ClipboardPage() {
       </Box>
 
       {/* Drop/paste input zone */}
-      <ClipboardInput onItemCreated={handleItemCreated} />
+      <ClipboardInput
+        onItemCreated={handleItemCreated}
+        onFileSelected={handleFileSelected}
+      />
+
+      {/* Large file multipart upload progress */}
+      {isMultipartUploading && multipartFile && (
+        <UploadProgress
+          fileName={multipartFile.name}
+          fileSize={multipartFile.size}
+          progress={multipartProgress}
+          onCancel={abortMultipart}
+        />
+      )}
 
       {/* Type filter chips */}
       <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: 'wrap', gap: 1 }}>
@@ -118,8 +203,27 @@ export default function ClipboardPage() {
         isLoading={isLoading}
         hasMore={hasMore}
         onLoadMore={loadMore}
-        onDelete={handleDelete}
+        onDelete={handleArchive}
         onItemClick={handleItemClick}
+        onItemUpdated={updateItem}
+        mode="clipboard"
+        selectedIds={selectedIds}
+        onSelectItem={handleSelectItem}
+        selectionMode={selectionMode}
+      />
+
+      {/* Multi-select floating bar */}
+      <SelectionBar
+        selectedCount={selectedIds.size}
+        onDeselectAll={handleDeselectAll}
+        actions={[
+          {
+            label: 'Archive Selected',
+            icon: Archive,
+            onClick: handleArchiveSelected,
+            color: 'primary',
+          },
+        ]}
       />
 
       {/* Text item full-view dialog */}

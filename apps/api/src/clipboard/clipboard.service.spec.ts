@@ -4,6 +4,7 @@ import { NotFoundException, ForbiddenException } from '@nestjs/common';
 import { ClipboardService } from './clipboard.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3StorageProvider } from '../storage/s3-storage.provider';
+import { EventsGateway } from '../gateway/events.gateway';
 
 const mockUser = {
   id: 'user-1',
@@ -49,6 +50,7 @@ describe('ClipboardService', () => {
         findUnique: jest.fn(),
         count: jest.fn(),
         update: jest.fn(),
+        updateMany: jest.fn(),
       },
       $transaction: jest.fn(),
     };
@@ -64,12 +66,17 @@ describe('ClipboardService', () => {
       get: jest.fn().mockReturnValue(undefined),
     };
 
+    const eventsGateway = {
+      emitToUser: jest.fn(),
+    };
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         ClipboardService,
         { provide: PrismaService, useValue: prisma },
         { provide: S3StorageProvider, useValue: s3 },
         { provide: ConfigService, useValue: configService },
+        { provide: EventsGateway, useValue: eventsGateway },
       ],
     }).compile();
 
@@ -460,6 +467,102 @@ describe('ClipboardService', () => {
       await expect(service.deleteItem('user-1', 'nonexistent')).rejects.toThrow(
         NotFoundException,
       );
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // batchOperation
+  // ---------------------------------------------------------------------------
+  describe('batchOperation', () => {
+    const ids = [
+      'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
+    ];
+
+    it('should archive multiple items and emit item:updated for each', async () => {
+      const archivedItems = ids.map((id) => ({ ...mockClipboardItem, id, status: 'archived' }));
+      prisma.clipboardItem.updateMany.mockResolvedValue({ count: 2 });
+      prisma.clipboardItem.findMany.mockResolvedValue(archivedItems);
+
+      const eventsGateway = (service as any).events;
+      const result = await service.batchOperation('user-1', ids, 'archive');
+
+      expect(result).toEqual({ count: 2 });
+      expect(prisma.clipboardItem.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ids }, userId: 'user-1' },
+        data: { status: 'archived' },
+      });
+      expect(prisma.clipboardItem.findMany).toHaveBeenCalledWith({
+        where: { id: { in: ids }, userId: 'user-1' },
+      });
+      expect(eventsGateway.emitToUser).toHaveBeenCalledTimes(2);
+      archivedItems.forEach((item) => {
+        expect(eventsGateway.emitToUser).toHaveBeenCalledWith('user-1', 'item:updated', item);
+      });
+    });
+
+    it('should restore multiple items and emit item:updated for each', async () => {
+      const restoredItems = ids.map((id) => ({ ...mockClipboardItem, id, status: 'active' }));
+      prisma.clipboardItem.updateMany.mockResolvedValue({ count: 2 });
+      prisma.clipboardItem.findMany.mockResolvedValue(restoredItems);
+
+      const eventsGateway = (service as any).events;
+      const result = await service.batchOperation('user-1', ids, 'restore');
+
+      expect(result).toEqual({ count: 2 });
+      expect(prisma.clipboardItem.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ids }, userId: 'user-1' },
+        data: { status: 'active' },
+      });
+      restoredItems.forEach((item) => {
+        expect(eventsGateway.emitToUser).toHaveBeenCalledWith('user-1', 'item:updated', item);
+      });
+    });
+
+    it('should soft-delete multiple items and emit item:deleted for each id', async () => {
+      prisma.clipboardItem.updateMany.mockResolvedValue({ count: 2 });
+
+      const eventsGateway = (service as any).events;
+      const result = await service.batchOperation('user-1', ids, 'delete');
+
+      expect(result).toEqual({ count: 2 });
+      expect(prisma.clipboardItem.updateMany).toHaveBeenCalledWith({
+        where: { id: { in: ids }, userId: 'user-1' },
+        data: { status: 'deleted' },
+      });
+      // findMany should NOT be called for delete — events use raw ids
+      expect(prisma.clipboardItem.findMany).not.toHaveBeenCalled();
+      ids.forEach((id) => {
+        expect(eventsGateway.emitToUser).toHaveBeenCalledWith('user-1', 'item:deleted', { id });
+      });
+    });
+
+    it('should only affect items belonging to the requesting user', async () => {
+      prisma.clipboardItem.updateMany.mockResolvedValue({ count: 1 });
+      prisma.clipboardItem.findMany.mockResolvedValue([
+        { ...mockClipboardItem, id: ids[0], status: 'archived' },
+      ]);
+
+      // Pass two ids but only one belongs to user-1 (Prisma enforces userId filter)
+      const result = await service.batchOperation('user-1', ids, 'archive');
+
+      expect(result).toEqual({ count: 1 });
+      expect(prisma.clipboardItem.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ userId: 'user-1' }),
+        }),
+      );
+    });
+
+    it('should return count=0 when no ids match the user', async () => {
+      prisma.clipboardItem.updateMany.mockResolvedValue({ count: 0 });
+      prisma.clipboardItem.findMany.mockResolvedValue([]);
+
+      const eventsGateway = (service as any).events;
+      const result = await service.batchOperation('user-1', ids, 'restore');
+
+      expect(result).toEqual({ count: 0 });
+      expect(eventsGateway.emitToUser).not.toHaveBeenCalled();
     });
   });
 

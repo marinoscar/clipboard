@@ -232,9 +232,16 @@ export async function getClipboardItem(id: string): Promise<ClipboardItem> {
 
 export async function updateClipboardItem(
   id: string,
-  data: { content?: string; status?: string },
+  data: { content?: string; status?: string; isPublic?: boolean },
 ): Promise<ClipboardItem> {
   return api.patch<ClipboardItem>(`/clipboard/${id}`, data);
+}
+
+export async function batchOperation(
+  ids: string[],
+  action: 'archive' | 'restore' | 'delete',
+): Promise<{ count: number }> {
+  return api.post<{ count: number }>('/clipboard/batch', { ids, action });
 }
 
 export async function deleteClipboardItem(id: string): Promise<void> {
@@ -243,4 +250,81 @@ export async function deleteClipboardItem(id: string): Promise<void> {
 
 export async function getDownloadUrl(id: string): Promise<{ url: string }> {
   return api.get<{ url: string }>(`/clipboard/${id}/download`);
+}
+
+// Multipart upload API
+
+export interface InitUploadResponse {
+  itemId: string;
+  uploadId: string;
+  partSize: number;
+  totalParts: number;
+  storageKey: string;
+}
+
+export async function initMultipartUpload(data: {
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+}): Promise<InitUploadResponse> {
+  return api.post<InitUploadResponse>('/clipboard/upload/init', data);
+}
+
+export async function getPartUploadUrl(
+  itemId: string,
+  partNumber: number,
+): Promise<{ url: string; partNumber: number }> {
+  return api.get<{ url: string; partNumber: number }>(
+    `/clipboard/upload/${itemId}/url?partNumber=${partNumber}`,
+  );
+}
+
+export async function recordUploadPart(
+  itemId: string,
+  data: { partNumber: number; eTag: string; size: number },
+): Promise<void> {
+  return api.post<void>(`/clipboard/upload/${itemId}/part`, data);
+}
+
+export async function completeMultipartUpload(
+  itemId: string,
+  parts: { partNumber: number; eTag: string }[],
+): Promise<ClipboardItem> {
+  return api.post<ClipboardItem>(`/clipboard/upload/${itemId}/complete`, { parts });
+}
+
+export async function abortMultipartUpload(itemId: string): Promise<void> {
+  return api.post<void>(`/clipboard/upload/${itemId}/abort`);
+}
+
+// Sharing API
+
+export async function enableSharing(
+  itemId: string,
+): Promise<{ shareToken: string; shareUrl: string }> {
+  return api.post<{ shareToken: string; shareUrl: string }>(`/clipboard/${itemId}/share`);
+}
+
+export async function disableSharing(itemId: string): Promise<void> {
+  return api.delete<void>(`/clipboard/${itemId}/share`);
+}
+
+export async function getPublicItem(shareToken: string): Promise<ClipboardItem> {
+  return api.get<ClipboardItem>(`/share/${shareToken}`, { skipAuth: true });
+}
+
+export async function getPublicDownloadUrl(shareToken: string): Promise<{ url: string }> {
+  return api.get<{ url: string }>(`/share/${shareToken}/download`, { skipAuth: true });
+}
+
+// System settings API
+
+export async function getSystemSettings(): Promise<Record<string, unknown>> {
+  return api.get<Record<string, unknown>>('/settings/system');
+}
+
+export async function updateSystemSettings(
+  data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  return api.patch<Record<string, unknown>>('/settings/system', data);
 }

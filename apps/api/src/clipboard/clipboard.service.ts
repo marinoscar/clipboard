@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { randomUUID } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3StorageProvider } from '../storage/s3-storage.provider';
+import { EventsGateway } from '../gateway/events.gateway';
 import { ClipboardQueryDto } from './dto/clipboard-query.dto';
 import { UpdateItemDto } from './dto/update-item.dto';
 import { Prisma } from '@prisma/client';
@@ -31,6 +32,7 @@ export class ClipboardService {
     private readonly prisma: PrismaService,
     private readonly s3: S3StorageProvider,
     private readonly configService: ConfigService,
+    private readonly events: EventsGateway,
   ) {}
 
   async createTextItem(userId: string, content: string) {
@@ -49,6 +51,7 @@ export class ClipboardService {
     });
 
     this.logger.log(`Text item created: ${item.id}`);
+    this.events.emitToUser(userId, 'item:created', item);
     return item;
   }
 
@@ -79,6 +82,7 @@ export class ClipboardService {
     });
 
     this.logger.log(`File item created: ${item.id} (${type})`);
+    this.events.emitToUser(userId, 'item:created', item);
     return item;
   }
 
@@ -160,6 +164,7 @@ export class ClipboardService {
     });
 
     this.logger.debug(`Item updated: ${itemId}`);
+    this.events.emitToUser(userId, 'item:updated', updated);
     return updated;
   }
 
@@ -173,7 +178,48 @@ export class ClipboardService {
     });
 
     this.logger.debug(`Item soft-deleted: ${itemId}`);
+    this.events.emitToUser(userId, 'item:deleted', { id: itemId });
     return deleted;
+  }
+
+  async batchOperation(
+    userId: string,
+    ids: string[],
+    action: 'archive' | 'restore' | 'delete',
+  ): Promise<{ count: number }> {
+    const statusMap = {
+      archive: 'archived',
+      restore: 'active',
+      delete: 'deleted',
+    } as const;
+    const newStatus = statusMap[action];
+
+    const result = await this.prisma.clipboardItem.updateMany({
+      where: {
+        id: { in: ids },
+        userId,
+      },
+      data: { status: newStatus },
+    });
+
+    this.logger.debug(
+      `Batch ${action}: ${result.count} items updated for user ${userId}`,
+    );
+
+    if (action === 'delete') {
+      for (const id of ids) {
+        this.events.emitToUser(userId, 'item:deleted', { id });
+      }
+    } else {
+      const updatedItems = await this.prisma.clipboardItem.findMany({
+        where: { id: { in: ids }, userId },
+      });
+      for (const item of updatedItems) {
+        this.events.emitToUser(userId, 'item:updated', item);
+      }
+    }
+
+    return { count: result.count };
   }
 
   async getDownloadUrl(userId: string, itemId: string): Promise<{ url: string }> {

@@ -1,6 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { ClipboardItem, ClipboardQuery, PaginatedResponse } from '../types';
-import { getClipboardItems, deleteClipboardItem } from '../services/api';
+import { getClipboardItems, deleteClipboardItem, updateClipboardItem } from '../services/api';
+import { useSocket } from './useSocket';
+
+/** Sort items newest-first by createdAt */
+function sortNewestFirst(items: ClipboardItem[]): ClipboardItem[] {
+  return [...items].sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+  );
+}
 
 export function useClipboard(query?: ClipboardQuery) {
   const [items, setItems] = useState<ClipboardItem[]>([]);
@@ -53,10 +61,52 @@ export function useClipboard(query?: ClipboardQuery) {
     setTotal((prev) => prev - 1);
   }, []);
 
+  const archiveItem = useCallback(async (id: string) => {
+    await updateClipboardItem(id, { status: 'archived' });
+    setItems((prev) => prev.filter((item) => item.id !== id));
+    setTotal((prev) => prev - 1);
+  }, []);
+
+  const restoreItem = useCallback(async (id: string) => {
+    await updateClipboardItem(id, { status: 'active' });
+    setItems((prev) => prev.filter((item) => item.id !== id));
+    setTotal((prev) => prev - 1);
+  }, []);
+
   const addItem = useCallback((item: ClipboardItem) => {
-    setItems((prev) => [item, ...prev]);
+    setItems((prev) => sortNewestFirst([item, ...prev]));
     setTotal((prev) => prev + 1);
   }, []);
+
+  const updateItem = useCallback((item: ClipboardItem) => {
+    setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
+  }, []);
+
+  // Real-time socket event handlers
+  const handleItemCreated = useCallback((item: ClipboardItem) => {
+    setItems((prev) => {
+      if (prev.some((i) => i.id === item.id)) return prev;
+      return sortNewestFirst([item, ...prev]);
+    });
+    setTotal((prev) => prev + 1);
+  }, []);
+
+  const handleItemUpdated = useCallback((item: ClipboardItem) => {
+    setItems((prev) => prev.map((i) => (i.id === item.id ? item : i)));
+  }, []);
+
+  const handleItemDeleted = useCallback(({ id }: { id: string }) => {
+    setItems((prev) => {
+      const exists = prev.some((i) => i.id === id);
+      if (!exists) return prev;
+      setTotal((t) => t - 1);
+      return prev.filter((i) => i.id !== id);
+    });
+  }, []);
+
+  useSocket('item:created', handleItemCreated);
+  useSocket('item:updated', handleItemUpdated);
+  useSocket('item:deleted', handleItemDeleted);
 
   return {
     items,
@@ -67,6 +117,9 @@ export function useClipboard(query?: ClipboardQuery) {
     refresh,
     loadMore,
     removeItem,
+    archiveItem,
+    restoreItem,
     addItem,
+    updateItem,
   };
 }

@@ -59,6 +59,7 @@ describe('ClipboardController', () => {
       updateItem: jest.fn(),
       deleteItem: jest.fn(),
       getDownloadUrl: jest.fn(),
+      batchOperation: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -249,6 +250,58 @@ describe('ClipboardController', () => {
 
       expect(result).toEqual(deleted);
       expect(clipboardService.deleteItem).toHaveBeenCalledWith('user-1', 'item-1');
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  // POST /clipboard/batch
+  // ---------------------------------------------------------------------------
+  describe('batchOperation', () => {
+    const batchIds = [
+      'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a22',
+    ];
+
+    it('should call batchOperation with user.id, ids, and action=archive', async () => {
+      clipboardService.batchOperation.mockResolvedValue({ count: 2 });
+
+      const dto = { ids: batchIds, action: 'archive' as const };
+      const result = await controller.batchOperation(dto, mockRequestUser);
+
+      expect(result).toEqual({ count: 2 });
+      expect(clipboardService.batchOperation).toHaveBeenCalledWith(
+        'user-1',
+        batchIds,
+        'archive',
+      );
+    });
+
+    it('should call batchOperation with action=restore', async () => {
+      clipboardService.batchOperation.mockResolvedValue({ count: 1 });
+
+      const dto = { ids: [batchIds[0]], action: 'restore' as const };
+      const result = await controller.batchOperation(dto, mockRequestUser);
+
+      expect(result).toEqual({ count: 1 });
+      expect(clipboardService.batchOperation).toHaveBeenCalledWith(
+        'user-1',
+        [batchIds[0]],
+        'restore',
+      );
+    });
+
+    it('should call batchOperation with action=delete', async () => {
+      clipboardService.batchOperation.mockResolvedValue({ count: 2 });
+
+      const dto = { ids: batchIds, action: 'delete' as const };
+      const result = await controller.batchOperation(dto, mockRequestUser);
+
+      expect(result).toEqual({ count: 2 });
+      expect(clipboardService.batchOperation).toHaveBeenCalledWith(
+        'user-1',
+        batchIds,
+        'delete',
+      );
     });
   });
 
