@@ -182,33 +182,27 @@ export default function ClipboardPage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
-      {/* Page header with action buttons */}
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'flex-start',
-          justifyContent: 'space-between',
-          mb: 3,
-          flexWrap: 'wrap',
-          gap: 1.5,
-        }}
-      >
-        <Box>
-          <Typography variant="h5" fontWeight={600} gutterBottom>
-            My Clipboard
-          </Typography>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ display: { xs: 'none', sm: 'block' } }}
-          >
-            Paste text or drop files anywhere on this page.
-          </Typography>
-        </Box>
-        <ClipboardActionBar
-          onFileSelected={handleFileForUpload}
-          onItemCreated={handleItemCreated}
-        />
+      {/* Floating action bar */}
+      <ClipboardActionBar
+        onFileSelected={handleFileForUpload}
+        onItemCreated={handleItemCreated}
+      />
+
+      {/* Spacer for the fixed action bar */}
+      <Box sx={{ height: 56 }} />
+
+      {/* Page header */}
+      <Box sx={{ mb: 3 }}>
+        <Typography variant="h5" fontWeight={600} gutterBottom>
+          My Clipboard
+        </Typography>
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ display: { xs: 'none', sm: 'block' } }}
+        >
+          Paste text or drop files anywhere on this page.
+        </Typography>
       </Box>
 
       {/* Type filter chips */}

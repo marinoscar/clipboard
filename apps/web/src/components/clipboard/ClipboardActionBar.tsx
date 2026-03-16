@@ -1,5 +1,6 @@
 import { useRef, useCallback, useState, ChangeEvent } from 'react';
 import Button from '@mui/material/Button';
+import Paper from '@mui/material/Paper';
 import Stack from '@mui/material/Stack';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
@@ -55,35 +56,51 @@ export function ClipboardActionBar({ onFileSelected, onItemCreated }: ClipboardA
 
   return (
     <>
-      <Stack direction="row" spacing={1}>
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<CloudUpload />}
-          onClick={() => fileInputRef.current?.click()}
-          sx={{ minHeight: 36 }}
-        >
-          Upload
-        </Button>
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<ContentPaste />}
-          onClick={handlePaste}
-          sx={{ minHeight: 36 }}
-        >
-          Paste
-        </Button>
-        <Button
-          variant="outlined"
-          size="small"
-          startIcon={<CameraAlt />}
-          onClick={() => cameraInputRef.current?.click()}
-          sx={{ minHeight: 36, display: { xs: 'inline-flex', md: 'none' } }}
-        >
-          Camera
-        </Button>
-      </Stack>
+      <Paper
+        elevation={3}
+        sx={{
+          position: 'fixed',
+          top: { xs: 56, sm: 64 },
+          left: 0,
+          right: 0,
+          zIndex: (theme) => theme.zIndex.appBar - 1,
+          display: 'flex',
+          justifyContent: 'center',
+          py: 1,
+          px: 2,
+        }}
+      >
+        <Stack direction="row" spacing={1.5}>
+          <Button
+            variant="contained"
+            color="success"
+            size="large"
+            startIcon={<ContentPaste />}
+            onClick={handlePaste}
+          >
+            Paste
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            size="large"
+            startIcon={<CloudUpload />}
+            onClick={() => fileInputRef.current?.click()}
+          >
+            Upload
+          </Button>
+          <Button
+            variant="contained"
+            color="primary"
+            size="large"
+            startIcon={<CameraAlt />}
+            onClick={() => cameraInputRef.current?.click()}
+            sx={{ display: { xs: 'inline-flex', md: 'none' } }}
+          >
+            Camera
+          </Button>
+        </Stack>
+      </Paper>
 
       <input
         ref={fileInputRef}
