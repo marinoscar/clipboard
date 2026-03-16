@@ -37,117 +37,52 @@ export function ClipboardActionBar({ onFileSelected, onItemCreated }: ClipboardA
     [onFileSelected],
   );
 
-  // Handle a real paste event (from hidden textarea or Ctrl+V)
-  const processPasteEvent = useCallback(
-    async (e: globalThis.ClipboardEvent) => {
-      const clipData = e.clipboardData;
-      if (!clipData) return false;
-
-      // Check for files first (images, PDFs, etc.)
-      const files = Array.from(clipData.files);
-      if (files.length > 0) {
-        for (const file of files) {
-          onFileSelected(file);
-        }
-        return true;
-      }
-
-      // Check for image items (e.g., screenshots)
-      for (const item of Array.from(clipData.items)) {
-        if (item.type.startsWith('image/')) {
-          const file = item.getAsFile();
-          if (file) {
-            onFileSelected(file);
-            return true;
-          }
-        }
-      }
-
-      // Fall back to text
-      const text = clipData.getData('text/plain');
-      if (text) {
-        const created = await createTextItem(text);
-        onItemCreated(created);
-        return true;
-      }
-
-      return false;
-    },
-    [onFileSelected, onItemCreated],
-  );
-
   const handlePaste = useCallback(async () => {
-    // Strategy 1: Use a hidden textarea to capture a real paste event.
-    // This gives us access to clipboardData.files which the Clipboard API doesn't support.
-    const textarea = document.createElement('textarea');
-    textarea.style.position = 'fixed';
-    textarea.style.left = '-9999px';
-    textarea.style.opacity = '0';
-    document.body.appendChild(textarea);
-    textarea.focus();
+    if (!navigator.clipboard) {
+      setError('Clipboard API not available on this browser.');
+      return;
+    }
 
-    let handled = false;
-
-    const pasteHandler = async (e: Event) => {
-      e.preventDefault();
-      e.stopPropagation();
+    // Strategy 1: Try clipboard.read() for images/blobs (separate try/catch)
+    if (navigator.clipboard.read) {
       try {
-        handled = await processPasteEvent(e as globalThis.ClipboardEvent);
-      } catch {
-        handled = false;
-      }
-    };
-
-    textarea.addEventListener('paste', pasteHandler, { once: true });
-
-    // Try execCommand('paste') — works on some browsers when triggered by user gesture
-    const execResult = document.execCommand('paste');
-
-    if (!execResult || !handled) {
-      // Strategy 2: Fall back to Clipboard API for text/images
-      textarea.removeEventListener('paste', pasteHandler);
-
-      try {
-        if (navigator.clipboard?.read) {
-          const clipboardItems = await navigator.clipboard.read();
-          for (const clipItem of clipboardItems) {
-            // Try any non-text blob type
-            for (const type of clipItem.types) {
-              if (type === 'text/plain') continue;
-              const blob = await clipItem.getType(type);
-              const ext = type.split('/')[1]?.split(';')[0] || 'bin';
-              const fileName = type.startsWith('image/') ? `clipboard-image.${ext}` : `clipboard-file.${ext}`;
-              const file = new File([blob], fileName, { type });
-              onFileSelected(file);
-              document.body.removeChild(textarea);
-              return;
-            }
-          }
-        }
-
-        // Try reading text
-        if (navigator.clipboard?.readText) {
-          const text = await navigator.clipboard.readText();
-          if (text) {
-            const item = await createTextItem(text);
-            onItemCreated(item);
-            document.body.removeChild(textarea);
+        const clipboardItems = await navigator.clipboard.read();
+        for (const clipItem of clipboardItems) {
+          for (const type of clipItem.types) {
+            if (type === 'text/plain' || type === 'text/html') continue;
+            const blob = await clipItem.getType(type);
+            const ext = type.split('/')[1]?.split(';')[0] || 'bin';
+            const fileName = type.startsWith('image/')
+              ? `clipboard-image.${ext}`
+              : `clipboard-file.${ext}`;
+            const file = new File([blob], fileName, { type });
+            onFileSelected(file);
             return;
           }
         }
-
-        setError('No content found in clipboard. Try copying something first, or use Ctrl+V for files.');
-      } catch (err) {
-        if (err instanceof Error && err.name === 'NotAllowedError') {
-          setError('Clipboard permission denied. Try using Ctrl+V instead.');
-        } else {
-          setError('Could not read clipboard. Try using Ctrl+V instead.');
-        }
+      } catch {
+        // clipboard.read() failed (permission denied or unsupported content)
+        // Fall through to text strategy
       }
     }
 
-    document.body.removeChild(textarea);
-  }, [processPasteEvent, onFileSelected, onItemCreated]);
+    // Strategy 2: Try readText() for plain text (separate try/catch)
+    if (navigator.clipboard.readText) {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          const item = await createTextItem(text);
+          onItemCreated(item);
+          return;
+        }
+      } catch {
+        // readText() failed — fall through to error
+      }
+    }
+
+    // Neither strategy worked
+    setError('No content found. For files, use the Upload button or Ctrl+V.');
+  }, [onFileSelected, onItemCreated]);
 
   return (
     <>
