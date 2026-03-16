@@ -4,15 +4,20 @@ A universal clipboard web application that lets you paste, upload, and access an
 
 ## Features
 
-- **Universal Paste** — Ctrl+V / Cmd+V captures text, images, and files from your system clipboard
-- **Drag & Drop** — Drop files directly into the browser to upload
+- **Universal Paste** — Tap the Paste button or press Ctrl+V / Cmd+V to capture text, images, and files from your clipboard
+- **File Upload** — Upload files via the Upload button, or drag and drop anywhere on the page (desktop)
+- **Camera Capture** — Snap a photo directly from your mobile device's camera
 - **Cross-Device Sync** — Real-time synchronization via WebSockets; changes appear instantly on all logged-in devices
-- **Large File Upload** — S3 multipart upload supports multi-GB files with progress tracking, pause, and resume
+- **Large File Upload** — S3 multipart upload supports multi-GB files with progress tracking and cancellation
 - **Public Sharing** — Generate unique share links for any item; recipients need no account
+- **Archive & Restore** — Archive items to declutter your clipboard; restore or permanently delete from the archive
+- **Batch Operations** — Multi-select items for bulk archive, restore, or delete
 - **Installable PWA** — Add to home screen on mobile; runs in standalone mode without browser chrome
 - **Android Share Target** — Share content from any Android app directly into Clipboard
+- **Mobile-First UI** — Floating action buttons, bottom navigation, icon-only controls on small screens
+- **Welcome Guide** — Interactive onboarding dialog on first visit; re-accessible via the help button
 - **Retention Policies** — Admin-configurable auto-archive and auto-delete with scheduled cron jobs
-- **Dark / Light Theme** — Toggle between themes; preference persists across sessions
+- **Dark / Light Theme** — Toggle between themes via the user menu; preference persists across sessions
 - **Google OAuth** — Secure sign-in with token rotation and reuse detection
 
 ## Tech Stack
@@ -25,6 +30,7 @@ A universal clipboard web application that lets you paste, upload, and access an
 | File Storage | AWS S3 (direct + presigned multipart upload) |
 | Real-time | Socket.IO |
 | Auth | Google OAuth, Passport, JWT + httpOnly refresh cookies |
+| PWA | Web App Manifest, Service Worker, Share Target API |
 | Infrastructure | Docker, Docker Compose, Nginx reverse proxy |
 
 ## Quick Start
@@ -115,6 +121,7 @@ The API automatically runs Prisma migrations on startup. Production containers r
 | PATCH | `/api/clipboard/:id` | JWT | Update item |
 | DELETE | `/api/clipboard/:id` | JWT | Soft-delete item |
 | GET | `/api/clipboard/:id/download` | JWT | Get signed download URL |
+| POST | `/api/clipboard/batch` | JWT | Batch archive, restore, or delete (up to 100 items) |
 
 ### Large File Upload (Multipart)
 
@@ -122,9 +129,9 @@ The API automatically runs Prisma migrations on startup. Production containers r
 |--------|------|------|-------------|
 | POST | `/api/clipboard/upload/init` | JWT | Initialize multipart upload |
 | GET | `/api/clipboard/upload/:id/url` | JWT | Get presigned URL for part |
+| POST | `/api/clipboard/upload/:id/part` | JWT | Record uploaded part (eTag, size) |
 | POST | `/api/clipboard/upload/:id/complete` | JWT | Finalize upload |
 | POST | `/api/clipboard/upload/:id/abort` | JWT | Abort upload |
-| GET | `/api/clipboard/upload/:id/status` | JWT | Get upload progress |
 
 ### Sharing
 
