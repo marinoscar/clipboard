@@ -11,10 +11,13 @@ import { ClipboardItem, ClipboardQuery } from '../types';
 import { useClipboard } from '../hooks/useClipboard';
 import { useClipboardPaste } from '../hooks/useClipboardPaste';
 import { useMultipartUpload } from '../hooks/useMultipartUpload';
+import { useFileUpload } from '../hooks/useFileUpload';
+import { usePageDrop } from '../hooks/usePageDrop';
 import { batchOperation } from '../services/api';
-import { ClipboardInput } from '../components/clipboard/ClipboardInput';
+import { ClipboardActionBar } from '../components/clipboard/ClipboardActionBar';
 import { ClipboardItemList } from '../components/clipboard/ClipboardItemList';
-import { UploadProgress } from '../components/clipboard/UploadProgress';
+import { UploadProgressDialog } from '../components/clipboard/UploadProgressDialog';
+import { DropOverlay } from '../components/clipboard/DropOverlay';
 import { TextItemView } from '../components/clipboard/TextItemView';
 import { FileItemView } from '../components/clipboard/FileItemView';
 import { SelectionBar } from '../components/clipboard/SelectionBar';
@@ -33,6 +36,7 @@ export default function ClipboardPage() {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
   const [selectedItem, setSelectedItem] = useState<ClipboardItem | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [smallUpload, setSmallUpload] = useState<{ fileName: string; fileSize: number } | null>(null);
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -57,6 +61,8 @@ export default function ClipboardPage() {
     isLargeFile,
   } = useMultipartUpload();
 
+  const { upload } = useFileUpload();
+
   const handleItemCreated = useCallback(
     (item: ClipboardItem) => {
       addItem(item);
@@ -65,27 +71,47 @@ export default function ClipboardPage() {
     [addItem],
   );
 
-  // Intercept large files: return true to signal ClipboardInput to skip its own upload
-  const handleFileSelected = useCallback(
-    (file: File): boolean => {
-      if (!isLargeFile(file)) return false;
-
-      startUpload(file)
-        .then((item) => handleItemCreated(item))
-        .catch((err: Error) => {
-          if (err.message !== 'Upload cancelled') {
-            setSnackbar({
-              open: true,
-              message: `Upload failed: ${err.message}`,
-              severity: 'error',
-            });
-          }
-        });
-
-      return true;
+  // Unified file upload handler — routes to multipart or simple upload
+  const handleFileForUpload = useCallback(
+    async (file: File) => {
+      if (isLargeFile(file)) {
+        startUpload(file)
+          .then((item) => handleItemCreated(item))
+          .catch((err: Error) => {
+            if (err.message !== 'Upload cancelled') {
+              setSnackbar({
+                open: true,
+                message: `Upload failed: ${err.message}`,
+                severity: 'error',
+              });
+            }
+          });
+      } else {
+        setSmallUpload({ fileName: file.name, fileSize: file.size });
+        try {
+          const result = await upload(file);
+          if (result) handleItemCreated(result);
+        } catch {
+          setSnackbar({ open: true, message: 'Upload failed.', severity: 'error' });
+        } finally {
+          setSmallUpload(null);
+        }
+      }
     },
-    [isLargeFile, startUpload, handleItemCreated],
+    [isLargeFile, startUpload, upload, handleItemCreated],
   );
+
+  // Page-level drag-and-drop
+  const handleFilesDropped = useCallback(
+    (files: File[]) => {
+      for (const file of files) {
+        handleFileForUpload(file);
+      }
+    },
+    [handleFileForUpload],
+  );
+
+  const { isDragOver } = usePageDrop({ onFilesDropped: handleFilesDropped });
 
   useClipboardPaste(handleItemCreated);
 
@@ -148,33 +174,38 @@ export default function ClipboardPage() {
 
   const selectionMode = selectedIds.size > 0;
 
+  // Upload dialog state
+  const isAnyUpload = isMultipartUploading || smallUpload !== null;
+  const uploadFileName = multipartFile?.name || smallUpload?.fileName || '';
+  const uploadFileSize = multipartFile?.size || smallUpload?.fileSize || 0;
+  const uploadProgress = isMultipartUploading ? multipartProgress : -1;
+
   return (
     <Container maxWidth="lg" sx={{ py: { xs: 2, md: 4 } }}>
-      {/* Page header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" fontWeight={600} gutterBottom>
-          My Clipboard
-        </Typography>
-        <Typography variant="body2" color="text.secondary">
-          Paste text or drop files anywhere on this page to save them.
-        </Typography>
-      </Box>
-
-      {/* Drop/paste input zone */}
-      <ClipboardInput
-        onItemCreated={handleItemCreated}
-        onFileSelected={handleFileSelected}
-      />
-
-      {/* Large file multipart upload progress */}
-      {isMultipartUploading && multipartFile && (
-        <UploadProgress
-          fileName={multipartFile.name}
-          fileSize={multipartFile.size}
-          progress={multipartProgress}
-          onCancel={abortMultipart}
+      {/* Page header with action buttons */}
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          mb: 3,
+          flexWrap: 'wrap',
+          gap: 1.5,
+        }}
+      >
+        <Box>
+          <Typography variant="h5" fontWeight={600} gutterBottom>
+            My Clipboard
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Paste text or drop files anywhere on this page.
+          </Typography>
+        </Box>
+        <ClipboardActionBar
+          onFileSelected={handleFileForUpload}
+          onItemCreated={handleItemCreated}
         />
-      )}
+      </Box>
 
       {/* Type filter chips */}
       <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: 'wrap', gap: 1 }}>
@@ -243,6 +274,18 @@ export default function ClipboardPage() {
           onClose={handleCloseDialog}
         />
       )}
+
+      {/* Upload progress dialog */}
+      <UploadProgressDialog
+        open={isAnyUpload}
+        fileName={uploadFileName}
+        fileSize={uploadFileSize}
+        progress={uploadProgress}
+        onCancel={isMultipartUploading ? abortMultipart : () => {}}
+      />
+
+      {/* Drag-and-drop overlay */}
+      <DropOverlay visible={isDragOver} />
 
       {/* Feedback snackbar */}
       <Snackbar
