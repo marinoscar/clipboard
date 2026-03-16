@@ -9,17 +9,13 @@ import {
   useTheme,
 } from '@mui/material';
 import {
-  Brightness4 as DarkModeIcon,
-  Brightness7 as LightModeIcon,
   ContentPaste as ClipboardIcon,
   Inventory2 as ArchiveIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
-import { useThemeContext } from '../../contexts/ThemeContext';
 import { UserMenu } from './UserMenu';
 
 export function AppHeader() {
-  const { isDarkMode, toggleMode } = useThemeContext();
   const navigate = useNavigate();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -51,10 +47,6 @@ export function AppHeader() {
             </IconButton>
           </Tooltip>
         )}
-
-        <IconButton onClick={toggleMode} color="inherit" sx={{ mr: 1 }}>
-          {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
-        </IconButton>
 
         <UserMenu />
       </Toolbar>

@@ -14,12 +14,16 @@ import {
   Logout as LogoutIcon,
   Settings as SettingsIcon,
   Inventory2 as ArchiveIcon,
+  Brightness4 as DarkModeIcon,
+  Brightness7 as LightModeIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useThemeContext } from '../../contexts/ThemeContext';
 
 export function UserMenu() {
   const { user, logout } = useAuth();
+  const { isDarkMode, toggleMode } = useThemeContext();
   const navigate = useNavigate();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
@@ -74,6 +78,15 @@ export function UserMenu() {
             <ListItemText>Settings</ListItemText>
           </MenuItem>
         )}
+
+        <MenuItem onClick={() => { toggleMode(); handleClose(); }}>
+          <ListItemIcon>
+            {isDarkMode ? <LightModeIcon fontSize="small" /> : <DarkModeIcon fontSize="small" />}
+          </ListItemIcon>
+          <ListItemText>{isDarkMode ? 'Light Mode' : 'Dark Mode'}</ListItemText>
+        </MenuItem>
+
+        <Divider />
 
         <MenuItem onClick={() => { handleClose(); logout(); }}>
           <ListItemIcon><LogoutIcon fontSize="small" /></ListItemIcon>

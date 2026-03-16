@@ -42,19 +42,18 @@ export function BottomNav() {
         value={value}
         onChange={(_, newValue) => {
           setValue(newValue);
-          switch (newValue) {
-            case 0: navigate('/'); break;
-            case 1: navigate('/archive'); break;
-            case 2: navigate('/settings'); break;
-          }
+          const routes = ['/', '/archive', ...(user?.isAdmin ? ['/settings'] : [])];
+          navigate(routes[newValue]);
         }}
         showLabels
       >
-        <BottomNavigationAction label="Clipboard" icon={<ContentPasteIcon />} />
-        <BottomNavigationAction label="Archive" icon={<Inventory2Icon />} />
-        {user?.isAdmin && (
-          <BottomNavigationAction label="Settings" icon={<SettingsIcon />} />
-        )}
+        {[
+          <BottomNavigationAction key="clipboard" label="Clipboard" icon={<ContentPasteIcon />} />,
+          <BottomNavigationAction key="archive" label="Archive" icon={<Inventory2Icon />} />,
+          ...(user?.isAdmin
+            ? [<BottomNavigationAction key="settings" label="Settings" icon={<SettingsIcon />} />]
+            : []),
+        ]}
       </BottomNavigation>
     </Paper>
   );
