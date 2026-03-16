@@ -74,8 +74,11 @@ export function useClipboard(query?: ClipboardQuery) {
   }, []);
 
   const addItem = useCallback((item: ClipboardItem) => {
-    setItems((prev) => sortNewestFirst([item, ...prev]));
-    setTotal((prev) => prev + 1);
+    setItems((prev) => {
+      if (prev.some((i) => i.id === item.id)) return prev;
+      setTotal((t) => t + 1);
+      return sortNewestFirst([item, ...prev]);
+    });
   }, []);
 
   const updateItem = useCallback((item: ClipboardItem) => {
