@@ -33,6 +33,7 @@ export class RetentionService {
     const result = await this.prisma.clipboardItem.updateMany({
       where: {
         status: 'active',
+        isFavorite: false,
         createdAt: { lt: cutoff },
       },
       data: { status: 'archived' },

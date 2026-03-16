@@ -90,13 +90,14 @@ export class ClipboardService {
     userId: string,
     query: ClipboardQueryDto,
   ): Promise<PaginatedResult<any>> {
-    const { page, pageSize, type, status, search, sortBy, sortOrder } = query;
+    const { page, pageSize, type, status, search, isFavorite, sortBy, sortOrder } = query;
     const skip = (page - 1) * pageSize;
 
     const where: Prisma.ClipboardItemWhereInput = {
       userId,
       status,
       ...(type ? { type } : {}),
+      ...(isFavorite !== undefined ? { isFavorite } : {}),
       ...(search
         ? {
             OR: [
@@ -160,6 +161,7 @@ export class ClipboardService {
       data: {
         ...(data.content !== undefined ? { content: data.content } : {}),
         ...(data.status !== undefined ? { status: data.status } : {}),
+        ...(data.isFavorite !== undefined ? { isFavorite: data.isFavorite } : {}),
       },
     });
 

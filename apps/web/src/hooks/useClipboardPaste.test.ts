@@ -25,6 +25,7 @@ function makeItem(overrides: Partial<ClipboardItem> = {}): ClipboardItem {
     storageKey: null,
     status: 'active',
     isPublic: false,
+    isFavorite: false,
     shareToken: null,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

@@ -5,6 +5,7 @@ import type { ClipboardItem } from '../../types';
 
 vi.mock('../../services/api', () => ({
   getDownloadUrl: vi.fn(),
+  updateClipboardItem: vi.fn(),
 }));
 
 import { getDownloadUrl } from '../../services/api';
@@ -23,7 +24,10 @@ function makeItem(overrides: Partial<ClipboardItem> = {}): ClipboardItem {
     storageKey: null,
     status: 'active',
     isPublic: false,
+    isFavorite: false,
     shareToken: null,
+    uploadStatus: null,
+    s3UploadId: null,
     // Use a fixed past date so formatRelativeTime returns a stable result
     createdAt: new Date(Date.now() - 60 * 1000).toISOString(), // 1 minute ago
     updatedAt: new Date().toISOString(),
@@ -67,8 +71,8 @@ describe('ClipboardItemCard', () => {
       render(<ClipboardItemCard item={makeItem()} onDelete={vi.fn()} />);
       // IconButton is wrapped in a Tooltip — query by aria-label or by the button role
       const buttons = screen.getAllByRole('button');
-      // Copy and Delete buttons
-      expect(buttons).toHaveLength(2);
+      // Favorite, Copy, and Archive buttons
+      expect(buttons).toHaveLength(3);
     });
 
     it('does not show Download button for text items', () => {
@@ -101,9 +105,9 @@ describe('ClipboardItemCard', () => {
       const item = makeItem({ type: 'file', fileName: 'doc.pdf', fileSize: 500 });
       render(<ClipboardItemCard item={item} onDelete={vi.fn()} />);
 
-      // Download + Delete buttons
+      // Favorite, Download, and Archive buttons
       const buttons = screen.getAllByRole('button');
-      expect(buttons).toHaveLength(2);
+      expect(buttons).toHaveLength(3);
     });
 
     it('does not show Copy button for file items', () => {
@@ -111,8 +115,8 @@ describe('ClipboardItemCard', () => {
       render(<ClipboardItemCard item={item} onDelete={vi.fn()} />);
 
       const buttons = screen.getAllByRole('button');
-      // Only Download and Delete
-      expect(buttons).toHaveLength(2);
+      // Favorite, Download, and Archive — no Copy
+      expect(buttons).toHaveLength(3);
     });
 
     it('shows type chip with label "file"', () => {
@@ -149,8 +153,9 @@ describe('ClipboardItemCard', () => {
       const item = makeItem({ type: 'image', fileName: 'img.jpg' });
       render(<ClipboardItemCard item={item} onDelete={vi.fn()} />);
 
+      // Favorite, Download, and Archive buttons
       const buttons = screen.getAllByRole('button');
-      expect(buttons).toHaveLength(2);
+      expect(buttons).toHaveLength(3);
     });
   });
 
@@ -178,8 +183,9 @@ describe('ClipboardItemCard', () => {
       const item = makeItem({ type: 'media', fileName: 'audio.mp3', mimeType: 'audio/mpeg' });
       render(<ClipboardItemCard item={item} onDelete={vi.fn()} />);
 
+      // Favorite, Download, and Archive buttons
       const buttons = screen.getAllByRole('button');
-      expect(buttons).toHaveLength(2);
+      expect(buttons).toHaveLength(3);
     });
   });
 
@@ -243,8 +249,8 @@ describe('ClipboardItemCard', () => {
       render(<ClipboardItemCard item={item} onDelete={vi.fn()} />);
 
       const buttons = screen.getAllByRole('button');
-      // Download is first, Delete is second
-      fireEvent.click(buttons[0]);
+      // Favorite is first, Download is second, Archive is third
+      fireEvent.click(buttons[1]);
 
       await waitFor(() => {
         expect(mockedGetDownloadUrl).toHaveBeenCalledWith(item.id);

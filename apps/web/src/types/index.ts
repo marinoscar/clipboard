@@ -25,6 +25,7 @@ export interface ClipboardItem {
   s3UploadId: string | null;
   status: 'active' | 'archived' | 'deleted';
   isPublic: boolean;
+  isFavorite: boolean;
   shareToken: string | null;
   createdAt: string;
   updatedAt: string;
@@ -38,6 +39,7 @@ export interface ClipboardQuery {
   search?: string;
   sortBy?: 'createdAt' | 'updatedAt' | 'fileName';
   sortOrder?: 'asc' | 'desc';
+  isFavorite?: boolean;
 }
 
 export interface PaginatedResponse<T> {

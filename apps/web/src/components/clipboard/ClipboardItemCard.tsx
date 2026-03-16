@@ -11,6 +11,8 @@ import Checkbox from '@mui/material/Checkbox';
 import ContentCopy from '@mui/icons-material/ContentCopy';
 import Archive from '@mui/icons-material/Archive';
 import Download from '@mui/icons-material/Download';
+import Star from '@mui/icons-material/Star';
+import StarBorder from '@mui/icons-material/StarBorder';
 import Unarchive from '@mui/icons-material/Unarchive';
 import DeleteForever from '@mui/icons-material/DeleteForever';
 import InsertDriveFile from '@mui/icons-material/InsertDriveFile';
@@ -20,7 +22,7 @@ import VideoFile from '@mui/icons-material/VideoFile';
 import TextSnippet from '@mui/icons-material/TextSnippet';
 import LinkIcon from '@mui/icons-material/Link';
 import { ClipboardItem } from '../../types';
-import { getDownloadUrl } from '../../services/api';
+import { getDownloadUrl, updateClipboardItem } from '../../services/api';
 import { ShareButton } from './ShareButton';
 
 export type CardMode = 'clipboard' | 'archive';
@@ -151,6 +153,17 @@ export function ClipboardItemCard({
     if (onSelect) onSelect(item.id);
   };
 
+  const handleToggleFavorite = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!onItemUpdated) return;
+    try {
+      const updated = await updateClipboardItem(item.id, { isFavorite: !item.isFavorite });
+      onItemUpdated(updated);
+    } catch {
+      // silently fail
+    }
+  };
+
   return (
     <Card
       variant="outlined"
@@ -217,6 +230,11 @@ export function ClipboardItemCard({
                   color="primary"
                   variant="outlined"
                 />
+              </Tooltip>
+            )}
+            {item.isFavorite && (
+              <Tooltip title="Favorite">
+                <Star sx={{ fontSize: 18, color: 'warning.main' }} />
               </Tooltip>
             )}
           </Box>
@@ -304,6 +322,16 @@ export function ClipboardItemCard({
       <CardActions sx={{ justifyContent: 'flex-end', pt: 0 }}>
         {mode === 'clipboard' && (
           <>
+            <Tooltip title={item.isFavorite ? 'Remove from favorites' : 'Add to favorites'}>
+              <IconButton
+                size="small"
+                onClick={handleToggleFavorite}
+                color={item.isFavorite ? 'warning' : 'default'}
+              >
+                {item.isFavorite ? <Star fontSize="small" /> : <StarBorder fontSize="small" />}
+              </IconButton>
+            </Tooltip>
+
             {item.type === 'text' && (
               <Tooltip title={copied ? 'Copied!' : 'Copy'}>
                 <IconButton size="small" onClick={handleCopy} color={copied ? 'success' : 'default'}>

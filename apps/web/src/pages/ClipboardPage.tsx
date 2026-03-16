@@ -26,10 +26,11 @@ import { FileItemView } from '../components/clipboard/FileItemView';
 import { SelectionBar } from '../components/clipboard/SelectionBar';
 import { WelcomeDialog, shouldShowWelcome } from '../components/clipboard/WelcomeDialog';
 
-type TypeFilter = 'all' | 'text' | 'image' | 'file' | 'media';
+type TypeFilter = 'all' | 'text' | 'image' | 'file' | 'media' | 'favorites';
 
 const TYPE_FILTERS: { label: string; value: TypeFilter }[] = [
   { label: 'All', value: 'all' },
+  { label: 'Favorites', value: 'favorites' },
   { label: 'Text', value: 'text' },
   { label: 'Images', value: 'image' },
   { label: 'Files', value: 'file' },
@@ -51,7 +52,11 @@ export default function ClipboardPage() {
   const query: ClipboardQuery = {
     pageSize: 12,
     status: 'active',
-    ...(typeFilter !== 'all' ? { type: typeFilter } : {}),
+    ...(typeFilter === 'favorites'
+      ? { isFavorite: true }
+      : typeFilter !== 'all'
+        ? { type: typeFilter as 'text' | 'image' | 'file' | 'media' }
+        : {}),
   };
 
   const { items, isLoading, error, hasMore, loadMore, refresh, archiveItem, addItem, updateItem } =

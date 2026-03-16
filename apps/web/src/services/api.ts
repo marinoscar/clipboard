@@ -232,7 +232,7 @@ export async function getClipboardItem(id: string): Promise<ClipboardItem> {
 
 export async function updateClipboardItem(
   id: string,
-  data: { content?: string; status?: string; isPublic?: boolean },
+  data: { content?: string; status?: string; isPublic?: boolean; isFavorite?: boolean },
 ): Promise<ClipboardItem> {
   return api.patch<ClipboardItem>(`/clipboard/${id}`, data);
 }

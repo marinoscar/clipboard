@@ -47,6 +47,7 @@ function makeItem(overrides: Partial<ClipboardItem> = {}): ClipboardItem {
     s3UploadId: null,
     status: 'archived',
     isPublic: false,
+    isFavorite: false,
     shareToken: null,
     createdAt: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
     updatedAt: new Date().toISOString(),

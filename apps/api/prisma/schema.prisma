@@ -52,6 +52,7 @@ model ClipboardItem {
   metadata     String?  // JSON string
   status       String   @default("active") // active, archived, deleted
   isPublic     Boolean  @default(false) @map("is_public")
+  isFavorite   Boolean  @default(false) @map("is_favorite")
   shareToken   String?  @unique @map("share_token")
   s3UploadId   String?  @map("s3_upload_id")
   uploadStatus String?  @map("upload_status") // pending, uploading, complete, failed
