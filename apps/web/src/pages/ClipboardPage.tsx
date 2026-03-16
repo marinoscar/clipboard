@@ -1,15 +1,11 @@
 import { useState, useCallback } from 'react';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
-import Typography from '@mui/material/Typography';
 import Chip from '@mui/material/Chip';
 import Stack from '@mui/material/Stack';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import Archive from '@mui/icons-material/Archive';
-import HelpOutline from '@mui/icons-material/HelpOutline';
-import IconButton from '@mui/material/IconButton';
-import Tooltip from '@mui/material/Tooltip';
 import { ClipboardItem, ClipboardQuery } from '../types';
 import { useClipboard } from '../hooks/useClipboard';
 import { useClipboardPaste } from '../hooks/useClipboardPaste';
@@ -201,29 +197,8 @@ export default function ClipboardPage() {
       {/* Spacer for the fixed action bar */}
       <Box sx={{ height: 56 }} />
 
-      {/* Page header */}
-      <Box sx={{ mb: 3, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
-        <Box>
-          <Typography variant="h5" fontWeight={600} gutterBottom>
-            My Clipboard
-          </Typography>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ display: { xs: 'none', sm: 'block' } }}
-          >
-            Paste text or drop files anywhere on this page.
-          </Typography>
-        </Box>
-        <Tooltip title="How it works">
-          <IconButton onClick={() => setWelcomeOpen(true)} size="small" color="default">
-            <HelpOutline />
-          </IconButton>
-        </Tooltip>
-      </Box>
-
       {/* Type filter chips */}
-      <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: 'wrap', gap: 1 }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: 'wrap', gap: 1, justifyContent: { xs: 'center', md: 'flex-start' } }}>
         {TYPE_FILTERS.map(({ label, value }) => (
           <Chip
             key={value}

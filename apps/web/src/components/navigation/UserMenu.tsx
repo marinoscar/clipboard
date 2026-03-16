@@ -16,6 +16,7 @@ import {
   Inventory2 as ArchiveIcon,
   Brightness4 as DarkModeIcon,
   Brightness7 as LightModeIcon,
+  HelpOutline as HelpIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -78,6 +79,11 @@ export function UserMenu() {
             <ListItemText>Settings</ListItemText>
           </MenuItem>
         )}
+
+        <MenuItem onClick={() => handleNavigate('/help')}>
+          <ListItemIcon><HelpIcon fontSize="small" /></ListItemIcon>
+          <ListItemText>Help</ListItemText>
+        </MenuItem>
 
         <MenuItem onClick={() => { toggleMode(); handleClose(); }}>
           <ListItemIcon>

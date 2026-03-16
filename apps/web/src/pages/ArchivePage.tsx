@@ -226,7 +226,7 @@ export default function ArchivePage() {
       </Box>
 
       {/* Type filter chips */}
-      <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: 'wrap', gap: 1 }}>
+      <Stack direction="row" spacing={1} sx={{ mb: 3, flexWrap: 'wrap', gap: 1, justifyContent: { xs: 'center', md: 'flex-start' } }}>
         {TYPE_FILTERS.map(({ label, value }) => (
           <Chip
             key={value}
