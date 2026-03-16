@@ -4,12 +4,13 @@ A universal clipboard web application that lets you paste, upload, and access an
 
 ## Features
 
-- **Universal Paste** — Tap the Paste button or press Ctrl+V / Cmd+V to capture text, images, and files from your clipboard
+- **Universal Paste** — Tap the Paste button for text and images, or press Ctrl+V / Cmd+V for text, images, and files
 - **File Upload** — Upload files via the Upload button, or drag and drop anywhere on the page (desktop)
 - **Camera Capture** — Snap a photo directly from your mobile device's camera
 - **Cross-Device Sync** — Real-time synchronization via WebSockets; changes appear instantly on all logged-in devices
 - **Large File Upload** — S3 multipart upload supports multi-GB files with progress tracking and cancellation
 - **Public Sharing** — Generate unique share links for any item; recipients need no account
+- **Favorites** — Star important items to pin them and protect them from auto-archival retention policies
 - **Archive & Restore** — Archive items to declutter your clipboard; restore or permanently delete from the archive
 - **Batch Operations** — Multi-select items for bulk archive, restore, or delete
 - **Installable PWA** — Add to home screen on mobile; runs in standalone mode without browser chrome
