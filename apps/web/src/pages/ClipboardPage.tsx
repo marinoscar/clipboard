@@ -197,7 +197,11 @@ export default function ClipboardPage() {
           <Typography variant="h5" fontWeight={600} gutterBottom>
             My Clipboard
           </Typography>
-          <Typography variant="body2" color="text.secondary">
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ display: { xs: 'none', sm: 'block' } }}
+          >
             Paste text or drop files anywhere on this page.
           </Typography>
         </Box>
