@@ -1,29 +1,62 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Container from '@mui/material/Container';
+import { useAuth } from '../contexts/AuthContext';
 import { createTextItem, uploadFile } from '../services/api';
+import { getPendingShare, deletePendingShare, cleanupStaleShares } from '../services/shareStorage';
+
+type Status = 'loading' | 'needs-login' | 'processing' | 'success' | 'error' | 'no-data';
 
 export default function ShareTargetPage() {
   const navigate = useNavigate();
-  const [status, setStatus] = useState<'processing' | 'success' | 'error'>('processing');
+  const { user, isLoading: authLoading } = useAuth();
+  const [status, setStatus] = useState<Status>('loading');
   const [errorMessage, setErrorMessage] = useState('');
+  const processedRef = useRef(false);
 
   useEffect(() => {
-    const handleSharedContent = async (data: { text?: string | null; file?: File | null }) => {
+    if (authLoading) return; // Wait for auth to resolve
+    if (processedRef.current) return; // Prevent double processing in StrictMode
+
+    const process = async () => {
+      await cleanupStaleShares();
+
+      const pending = await getPendingShare();
+
+      if (!pending) {
+        setStatus('no-data');
+        setTimeout(() => navigate('/', { replace: true }), 1500);
+        return;
+      }
+
+      if (!user) {
+        setStatus('needs-login');
+        navigate('/login', {
+          state: { from: { pathname: '/share-target', search: '' } },
+          replace: true,
+        });
+        return;
+      }
+
+      // Authenticated with pending data — process it
+      processedRef.current = true;
+      setStatus('processing');
+
       try {
-        if (data.file) {
-          await uploadFile(data.file);
-        } else if (data.text) {
-          await createTextItem(data.text);
+        if (pending.file) {
+          await uploadFile(pending.file);
+        } else if (pending.text) {
+          await createTextItem(pending.text);
         } else {
-          throw new Error('No content received');
+          throw new Error('No content in shared data');
         }
+
+        await deletePendingShare(pending.id);
         setStatus('success');
-        // Redirect to home after short delay
         setTimeout(() => navigate('/', { replace: true }), 1500);
       } catch (err) {
         setStatus('error');
@@ -31,33 +64,8 @@ export default function ShareTargetPage() {
       }
     };
 
-    const handler = (event: MessageEvent) => {
-      if (event.data?.type === 'share-target') {
-        handleSharedContent(event.data);
-      }
-    };
-
-    navigator.serviceWorker?.addEventListener('message', handler);
-
-    // Also check URL params for the shared=true flag (fallback if no SW message arrives)
-    const params = new URLSearchParams(window.location.search);
-    if (params.get('shared') === 'true') {
-      // Wait a bit for the SW message; if none arrives, redirect home
-      const timeout = setTimeout(() => {
-        if (status === 'processing') {
-          navigate('/', { replace: true });
-        }
-      }, 3000);
-      return () => {
-        clearTimeout(timeout);
-        navigator.serviceWorker?.removeEventListener('message', handler);
-      };
-    }
-
-    return () => {
-      navigator.serviceWorker?.removeEventListener('message', handler);
-    };
-  }, [navigate, status]);
+    process();
+  }, [authLoading, user, navigate]);
 
   return (
     <Container maxWidth="sm">
@@ -71,15 +79,22 @@ export default function ShareTargetPage() {
           gap: 2,
         }}
       >
-        {status === 'processing' && (
+        {(status === 'loading' || status === 'processing' || status === 'needs-login') && (
           <>
             <CircularProgress />
-            <Typography color="text.secondary">Saving shared content...</Typography>
+            <Typography color="text.secondary">
+              {status === 'needs-login' ? 'Redirecting to login...' : 'Saving shared content...'}
+            </Typography>
           </>
         )}
         {status === 'success' && (
           <Alert severity="success" sx={{ width: '100%' }}>
             Content saved to clipboard! Redirecting...
+          </Alert>
+        )}
+        {status === 'no-data' && (
+          <Alert severity="info" sx={{ width: '100%' }}>
+            No shared content found. Redirecting...
           </Alert>
         )}
         {status === 'error' && (

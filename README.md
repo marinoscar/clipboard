@@ -14,7 +14,7 @@ A universal clipboard web application that lets you paste, upload, and access an
 - **Archive & Restore** — Archive items to declutter your clipboard; restore or permanently delete from the archive
 - **Batch Operations** — Multi-select items for bulk archive, restore, or delete
 - **Installable PWA** — Add to home screen on mobile; runs in standalone mode without browser chrome
-- **Android Share Target** — Share content from any Android app directly into Clipboard
+- **Android Share Target** — Share files, images, or text from any Android app directly into Clipboard; shared data persists through login if needed
 - **Mobile-First UI** — Floating action buttons, bottom navigation, icon-only controls on small screens
 - **Welcome Guide** — Interactive onboarding dialog on first visit; re-accessible via the help button
 - **Retention Policies** — Admin-configurable auto-archive and auto-delete with scheduled cron jobs

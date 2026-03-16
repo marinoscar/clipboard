@@ -40,19 +40,50 @@ self.addEventListener('fetch', (event) => {
 
 async function handleShareTarget(request) {
   const formData = await request.formData();
-  const text = formData.get('text') || formData.get('url') || formData.get('title');
+  const title = formData.get('title');
+  const text = formData.get('text');
+  const url = formData.get('url');
   const file = formData.get('file');
 
-  const clients = await self.clients.matchAll({ type: 'window' });
+  const textContent = text || url || title || null;
 
-  if (clients.length > 0) {
-    clients[0].postMessage({
-      type: 'share-target',
-      text: text ? text.toString() : null,
-      file: file instanceof File ? file : null,
+  // Store in IndexedDB for the React app to pick up
+  await savePendingShare({
+    text: textContent ? textContent.toString() : null,
+    file: file instanceof File ? file : null,
+  });
+
+  // Redirect to share-target page (app reads from IndexedDB)
+  return Response.redirect('/share-target', 303);
+}
+
+function openShareDB() {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open('clipboard-share-target', 1);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains('pending-shares')) {
+        db.createObjectStore('pending-shares', { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function savePendingShare(data) {
+  const db = await openShareDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('pending-shares', 'readwrite');
+    const store = tx.objectStore('pending-shares');
+    store.add({
+      text: data.text || null,
+      file: data.file || null,
+      fileName: data.file ? data.file.name : null,
+      fileType: data.file ? data.file.type : null,
+      timestamp: Date.now(),
     });
-    clients[0].focus();
-  }
-
-  return Response.redirect('/?shared=true', 303);
+    tx.oncomplete = () => { db.close(); resolve(); };
+    tx.onerror = () => { db.close(); reject(tx.error); };
+  });
 }

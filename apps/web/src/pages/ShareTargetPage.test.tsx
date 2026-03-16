@@ -4,10 +4,7 @@ import { MemoryRouter } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import ShareTargetPage from './ShareTargetPage';
 
-// ------------------------------------------------------------------
-// Module mocks
-// ------------------------------------------------------------------
-
+// Mock modules
 vi.mock('react-router-dom', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-router-dom')>();
   return {
@@ -21,185 +18,214 @@ vi.mock('../services/api', () => ({
   uploadFile: vi.fn(),
 }));
 
+vi.mock('../contexts/AuthContext', () => ({
+  useAuth: vi.fn(),
+}));
+
+vi.mock('../services/shareStorage', () => ({
+  getPendingShare: vi.fn(),
+  deletePendingShare: vi.fn(),
+  cleanupStaleShares: vi.fn(),
+}));
+
 import { useNavigate } from 'react-router-dom';
 import { createTextItem, uploadFile } from '../services/api';
+import { useAuth } from '../contexts/AuthContext';
+import { getPendingShare, deletePendingShare, cleanupStaleShares } from '../services/shareStorage';
 
 const mockedUseNavigate = vi.mocked(useNavigate);
 const mockedCreateTextItem = vi.mocked(createTextItem);
 const mockedUploadFile = vi.mocked(uploadFile);
-
-// ------------------------------------------------------------------
-// Helpers
-// ------------------------------------------------------------------
+const mockedUseAuth = vi.mocked(useAuth);
+const mockedGetPendingShare = vi.mocked(getPendingShare);
+const mockedDeletePendingShare = vi.mocked(deletePendingShare);
+const mockedCleanupStaleShares = vi.mocked(cleanupStaleShares);
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <MemoryRouter>{children}</MemoryRouter>
 );
 
-/** Simulate a service-worker 'message' event with share-target data. */
-function fireServiceWorkerMessage(data: Record<string, unknown>) {
-  // Grab the handler registered via navigator.serviceWorker.addEventListener
-  const calls = (navigator.serviceWorker.addEventListener as ReturnType<typeof vi.fn>).mock.calls;
-  const messageHandlers = calls
-    .filter(([event]: [string]) => event === 'message')
-    .map(([, handler]: [string, (e: MessageEvent) => void]) => handler);
-
-  const event = new MessageEvent('message', { data });
-  messageHandlers.forEach((h) => h(event));
-}
-
-// ------------------------------------------------------------------
-// Setup
-// ------------------------------------------------------------------
-
 beforeEach(() => {
   vi.clearAllMocks();
-
-  // Default navigate mock
   mockedUseNavigate.mockReturnValue(vi.fn());
-
-  // Mock navigator.serviceWorker
-  Object.defineProperty(navigator, 'serviceWorker', {
-    configurable: true,
-    writable: true,
-    value: {
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    },
-  });
-
-  // Restore window.location.search to empty by default
-  Object.defineProperty(window, 'location', {
-    configurable: true,
-    writable: true,
-    value: { ...window.location, search: '' },
-  });
+  mockedCleanupStaleShares.mockResolvedValue(undefined);
+  mockedDeletePendingShare.mockResolvedValue(undefined);
 });
 
-// ------------------------------------------------------------------
-// Tests
-// ------------------------------------------------------------------
-
 describe('ShareTargetPage', () => {
-  it('shows "Saving shared content..." spinner initially', () => {
+  it('shows loading spinner while auth is resolving', () => {
+    mockedUseAuth.mockReturnValue({
+      user: null,
+      isLoading: true,
+      isAuthenticated: false,
+      providers: [],
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshUser: vi.fn(),
+    });
+    mockedGetPendingShare.mockResolvedValue(null);
+
     render(<ShareTargetPage />, { wrapper });
 
-    expect(screen.getByText('Saving shared content...')).toBeInTheDocument();
-    // MUI CircularProgress renders a role="progressbar"
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
   });
 
-  it('calls createTextItem and redirects home when a text share-target message arrives', async () => {
-    const mockNavigate = vi.fn();
-    mockedUseNavigate.mockReturnValue(mockNavigate);
+  it('processes pending text share when authenticated', async () => {
+    mockedUseAuth.mockReturnValue({
+      user: { id: '1', email: 'test@test.com', displayName: null, profileImageUrl: null, isActive: true, isAdmin: false },
+      isLoading: false,
+      isAuthenticated: true,
+      providers: [],
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshUser: vi.fn(),
+    });
+    mockedGetPendingShare.mockResolvedValue({
+      id: 1,
+      text: 'shared text',
+      file: null,
+      fileName: null,
+      fileType: null,
+      timestamp: Date.now(),
+    });
     mockedCreateTextItem.mockResolvedValue({} as never);
 
     render(<ShareTargetPage />, { wrapper });
 
-    fireServiceWorkerMessage({ type: 'share-target', text: 'Hello from share' });
-
     await waitFor(() => {
-      expect(mockedCreateTextItem).toHaveBeenCalledWith('Hello from share');
+      expect(mockedCreateTextItem).toHaveBeenCalledWith('shared text');
+      expect(mockedDeletePendingShare).toHaveBeenCalledWith(1);
     });
 
     await waitFor(() => {
       expect(screen.getByText(/Content saved to clipboard/i)).toBeInTheDocument();
     });
-
-    // Navigation is deferred by 1.5 s — use fake timers would be ideal, but
-    // waitFor polling is sufficient to observe the success state here.
   });
 
-  it('calls uploadFile and shows success when a file share-target message arrives', async () => {
-    const mockNavigate = vi.fn();
-    mockedUseNavigate.mockReturnValue(mockNavigate);
+  it('processes pending file share when authenticated', async () => {
+    const file = new File(['data'], 'photo.png', { type: 'image/png' });
+    mockedUseAuth.mockReturnValue({
+      user: { id: '1', email: 'test@test.com', displayName: null, profileImageUrl: null, isActive: true, isAdmin: false },
+      isLoading: false,
+      isAuthenticated: true,
+      providers: [],
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshUser: vi.fn(),
+    });
+    mockedGetPendingShare.mockResolvedValue({
+      id: 2,
+      text: null,
+      file,
+      fileName: 'photo.png',
+      fileType: 'image/png',
+      timestamp: Date.now(),
+    });
     mockedUploadFile.mockResolvedValue({} as never);
 
     render(<ShareTargetPage />, { wrapper });
 
-    const file = new File(['data'], 'image.png', { type: 'image/png' });
-    fireServiceWorkerMessage({ type: 'share-target', file });
-
     await waitFor(() => {
       expect(mockedUploadFile).toHaveBeenCalledWith(file);
-    });
-
-    await waitFor(() => {
-      expect(screen.getByText(/Content saved to clipboard/i)).toBeInTheDocument();
+      expect(mockedDeletePendingShare).toHaveBeenCalledWith(2);
     });
   });
 
-  it('shows an error alert when createTextItem rejects', async () => {
-    mockedUseNavigate.mockReturnValue(vi.fn());
-    mockedCreateTextItem.mockRejectedValue(new Error('Server unavailable'));
+  it('redirects to login when not authenticated with pending share', async () => {
+    const mockNavigate = vi.fn();
+    mockedUseNavigate.mockReturnValue(mockNavigate);
+    mockedUseAuth.mockReturnValue({
+      user: null,
+      isLoading: false,
+      isAuthenticated: false,
+      providers: [],
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshUser: vi.fn(),
+    });
+    mockedGetPendingShare.mockResolvedValue({
+      id: 3,
+      text: 'needs auth',
+      file: null,
+      fileName: null,
+      fileType: null,
+      timestamp: Date.now(),
+    });
 
     render(<ShareTargetPage />, { wrapper });
 
-    fireServiceWorkerMessage({ type: 'share-target', text: 'some text' });
-
     await waitFor(() => {
-      expect(screen.getByText('Server unavailable')).toBeInTheDocument();
-    });
-
-    // Should show an MUI error Alert (role="alert")
-    expect(screen.getByRole('alert')).toBeInTheDocument();
-  });
-
-  it('shows a generic error message when the rejection is not an Error instance', async () => {
-    mockedUseNavigate.mockReturnValue(vi.fn());
-    mockedCreateTextItem.mockRejectedValue('unexpected string rejection');
-
-    render(<ShareTargetPage />, { wrapper });
-
-    fireServiceWorkerMessage({ type: 'share-target', text: 'some text' });
-
-    await waitFor(() => {
-      expect(screen.getByText('Failed to save shared content')).toBeInTheDocument();
+      expect(mockNavigate).toHaveBeenCalledWith('/login', {
+        state: { from: { pathname: '/share-target', search: '' } },
+        replace: true,
+      });
     });
   });
 
-  it('shows an error alert when uploadFile rejects', async () => {
-    mockedUseNavigate.mockReturnValue(vi.fn());
-    mockedUploadFile.mockRejectedValue(new Error('Upload failed'));
+  it('redirects home when no pending share exists', async () => {
+    const mockNavigate = vi.fn();
+    mockedUseNavigate.mockReturnValue(mockNavigate);
+    mockedUseAuth.mockReturnValue({
+      user: { id: '1', email: 'test@test.com', displayName: null, profileImageUrl: null, isActive: true, isAdmin: false },
+      isLoading: false,
+      isAuthenticated: true,
+      providers: [],
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshUser: vi.fn(),
+    });
+    mockedGetPendingShare.mockResolvedValue(null);
 
     render(<ShareTargetPage />, { wrapper });
 
-    const file = new File(['data'], 'doc.pdf', { type: 'application/pdf' });
-    fireServiceWorkerMessage({ type: 'share-target', file });
-
     await waitFor(() => {
-      expect(screen.getByText('Upload failed')).toBeInTheDocument();
+      expect(screen.getByText(/No shared content found/i)).toBeInTheDocument();
     });
   });
 
-  it('ignores message events whose type is not "share-target"', async () => {
-    mockedUseNavigate.mockReturnValue(vi.fn());
+  it('shows error when upload fails', async () => {
+    mockedUseAuth.mockReturnValue({
+      user: { id: '1', email: 'test@test.com', displayName: null, profileImageUrl: null, isActive: true, isAdmin: false },
+      isLoading: false,
+      isAuthenticated: true,
+      providers: [],
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshUser: vi.fn(),
+    });
+    mockedGetPendingShare.mockResolvedValue({
+      id: 4,
+      text: 'will fail',
+      file: null,
+      fileName: null,
+      fileType: null,
+      timestamp: Date.now(),
+    });
+    mockedCreateTextItem.mockRejectedValue(new Error('Server error'));
 
     render(<ShareTargetPage />, { wrapper });
 
-    fireServiceWorkerMessage({ type: 'other-event', text: 'ignored' });
-
-    // Should remain in processing state — no API calls fired
-    expect(mockedCreateTextItem).not.toHaveBeenCalled();
-    expect(mockedUploadFile).not.toHaveBeenCalled();
-    expect(screen.getByText('Saving shared content...')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Server error')).toBeInTheDocument();
+    });
   });
 
-  it('registers and removes service-worker message listener on mount/unmount', () => {
-    mockedUseNavigate.mockReturnValue(vi.fn());
+  it('cleans up stale shares on mount', async () => {
+    mockedUseAuth.mockReturnValue({
+      user: { id: '1', email: 'test@test.com', displayName: null, profileImageUrl: null, isActive: true, isAdmin: false },
+      isLoading: false,
+      isAuthenticated: true,
+      providers: [],
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshUser: vi.fn(),
+    });
+    mockedGetPendingShare.mockResolvedValue(null);
 
-    const { unmount } = render(<ShareTargetPage />, { wrapper });
+    render(<ShareTargetPage />, { wrapper });
 
-    expect(navigator.serviceWorker.addEventListener).toHaveBeenCalledWith(
-      'message',
-      expect.any(Function),
-    );
-
-    unmount();
-
-    expect(navigator.serviceWorker.removeEventListener).toHaveBeenCalledWith(
-      'message',
-      expect.any(Function),
-    );
+    await waitFor(() => {
+      expect(mockedCleanupStaleShares).toHaveBeenCalled();
+    });
   });
 });

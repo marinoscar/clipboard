@@ -18,6 +18,7 @@ const PublicItemPage = lazy(() => import('./pages/PublicItemPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ArchivePage = lazy(() => import('./pages/ArchivePage'));
 const ShareTargetPage = lazy(() => import('./pages/ShareTargetPage'));
+const HelpPage = lazy(() => import('./pages/HelpPage'));
 
 function AppRoutes() {
   const { theme } = useThemeContext();
@@ -32,6 +33,7 @@ function AppRoutes() {
             <Route path="/login" element={<LoginPage />} />
             <Route path="/auth/callback" element={<AuthCallbackPage />} />
             <Route path="/share/:shareToken" element={<PublicItemPage />} />
+            <Route path="/share-target" element={<ShareTargetPage />} />
 
             {/* Protected routes */}
             <Route element={<ProtectedRoute />}>
@@ -39,7 +41,7 @@ function AppRoutes() {
                 <Route path="/" element={<ClipboardPage />} />
                 <Route path="/archive" element={<ArchivePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
-                <Route path="/share-target" element={<ShareTargetPage />} />
+                <Route path="/help" element={<HelpPage />} />
               </Route>
             </Route>
 
