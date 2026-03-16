@@ -9,7 +9,6 @@ import {
   useTheme,
 } from '@mui/material';
 import {
-  ContentPaste as ClipboardIcon,
   Inventory2 as ArchiveIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
@@ -31,7 +30,12 @@ export function AppHeader() {
           onClick={() => navigate('/')}
           sx={{ display: 'flex', alignItems: 'center', cursor: 'pointer', mr: 2 }}
         >
-          <ClipboardIcon sx={{ mr: 1 }} />
+          <Box
+            component="img"
+            src="/icons/icon-192.png"
+            alt="Clipboard"
+            sx={{ width: 28, height: 28, mr: 1, borderRadius: 0.5 }}
+          />
           <Typography variant="h6" component="div">
             Clipboard
           </Typography>
