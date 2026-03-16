@@ -39,17 +39,43 @@ export function ClipboardActionBar({ onFileSelected, onItemCreated }: ClipboardA
 
   const handlePaste = useCallback(async () => {
     try {
-      if (!navigator.clipboard?.readText) {
+      if (!navigator.clipboard) {
         setError('Clipboard API not available. Use Ctrl+V to paste.');
         return;
       }
-      const text = await navigator.clipboard.readText();
-      if (!text) {
-        setError('Clipboard is empty.');
-        return;
+
+      // Try reading files/images first via navigator.clipboard.read()
+      if (navigator.clipboard.read) {
+        try {
+          const clipboardItems = await navigator.clipboard.read();
+          for (const clipItem of clipboardItems) {
+            // Check for image or file types (skip text/plain, we handle that below)
+            const imageType = clipItem.types.find((t) => t.startsWith('image/'));
+            if (imageType) {
+              const blob = await clipItem.getType(imageType);
+              const ext = imageType.split('/')[1] || 'png';
+              const file = new File([blob], `clipboard-image.${ext}`, { type: imageType });
+              onFileSelected(file);
+              return;
+            }
+          }
+        } catch {
+          // clipboard.read() may fail (permission denied or not supported for this content)
+          // Fall through to text reading
+        }
       }
-      const item = await createTextItem(text);
-      onItemCreated(item);
+
+      // Fall back to reading text
+      if (navigator.clipboard.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          const item = await createTextItem(text);
+          onItemCreated(item);
+          return;
+        }
+      }
+
+      setError('Clipboard is empty.');
     } catch (err) {
       if (err instanceof Error && err.name === 'NotAllowedError') {
         setError('Clipboard permission denied. Use Ctrl+V to paste.');
@@ -57,7 +83,7 @@ export function ClipboardActionBar({ onFileSelected, onItemCreated }: ClipboardA
         setError('Failed to paste from clipboard.');
       }
     }
-  }, [onItemCreated]);
+  }, [onItemCreated, onFileSelected]);
 
   return (
     <>
