@@ -22,6 +22,7 @@ import LinkIcon from '@mui/icons-material/Link';
 import { ClipboardItem } from '../../types';
 import { getDownloadUrl } from '../../services/api';
 import { ShareButton } from './ShareButton';
+import { ShareFromAppButton } from './ShareFromAppButton';
 
 export type CardMode = 'clipboard' | 'archive';
 
@@ -323,6 +324,8 @@ export function ClipboardItemCard({
             )}
 
             {onItemUpdated && <ShareButton item={item} onItemUpdated={onItemUpdated} />}
+
+            <ShareFromAppButton item={item} />
 
             <Tooltip title="Archive">
               <IconButton size="small" onClick={handlePrimaryAction} color="default">

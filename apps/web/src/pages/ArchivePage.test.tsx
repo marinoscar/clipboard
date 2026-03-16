@@ -101,7 +101,7 @@ describe('ArchivePage', () => {
 
   it('shows retention days from system settings', async () => {
     mockedGetClipboardItems.mockResolvedValue(makePaginatedResponse([]));
-    mockedGetSystemSettings.mockResolvedValue({ retentionDays: 30 });
+    mockedGetSystemSettings.mockResolvedValue({ 'retention.deleteAfterArchiveDays': 30 });
 
     renderArchivePage();
 

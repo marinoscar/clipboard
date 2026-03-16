@@ -17,6 +17,7 @@ const ClipboardPage = lazy(() => import('./pages/ClipboardPage'));
 const PublicItemPage = lazy(() => import('./pages/PublicItemPage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ArchivePage = lazy(() => import('./pages/ArchivePage'));
+const ShareTargetPage = lazy(() => import('./pages/ShareTargetPage'));
 
 function AppRoutes() {
   const { theme } = useThemeContext();
@@ -38,6 +39,7 @@ function AppRoutes() {
                 <Route path="/" element={<ClipboardPage />} />
                 <Route path="/archive" element={<ArchivePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/share-target" element={<ShareTargetPage />} />
               </Route>
             </Route>
 

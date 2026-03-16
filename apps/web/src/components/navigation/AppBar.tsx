@@ -5,6 +5,8 @@ import {
   IconButton,
   Box,
   Tooltip,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   Brightness4 as DarkModeIcon,
@@ -19,6 +21,8 @@ import { UserMenu } from './UserMenu';
 export function AppHeader() {
   const { isDarkMode, toggleMode } = useThemeContext();
   const navigate = useNavigate();
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   return (
     <AppBar
@@ -39,11 +43,14 @@ export function AppHeader() {
 
         <Box sx={{ flexGrow: 1 }} />
 
-        <Tooltip title="Archive">
-          <IconButton onClick={() => navigate('/archive')} color="inherit" sx={{ mr: 0.5 }}>
-            <ArchiveIcon />
-          </IconButton>
-        </Tooltip>
+        {/* Hide archive button on mobile - available in bottom nav */}
+        {!isMobile && (
+          <Tooltip title="Archive">
+            <IconButton onClick={() => navigate('/archive')} color="inherit" sx={{ mr: 0.5 }}>
+              <ArchiveIcon />
+            </IconButton>
+          </Tooltip>
+        )}
 
         <IconButton onClick={toggleMode} color="inherit" sx={{ mr: 1 }}>
           {isDarkMode ? <LightModeIcon /> : <DarkModeIcon />}
