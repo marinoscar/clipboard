@@ -120,7 +120,7 @@ export function ClipboardItemList({
       </Grid>
 
       {hasMore && !isLoading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', mt: 3, mb: { xs: 8, sm: 2 } }}>
           <Button variant="outlined" onClick={onLoadMore}>
             Load More
           </Button>
