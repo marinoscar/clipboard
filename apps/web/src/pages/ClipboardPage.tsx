@@ -7,6 +7,9 @@ import Stack from '@mui/material/Stack';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
 import Archive from '@mui/icons-material/Archive';
+import HelpOutline from '@mui/icons-material/HelpOutline';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
 import { ClipboardItem, ClipboardQuery } from '../types';
 import { useClipboard } from '../hooks/useClipboard';
 import { useClipboardPaste } from '../hooks/useClipboardPaste';
@@ -21,6 +24,7 @@ import { DropOverlay } from '../components/clipboard/DropOverlay';
 import { TextItemView } from '../components/clipboard/TextItemView';
 import { FileItemView } from '../components/clipboard/FileItemView';
 import { SelectionBar } from '../components/clipboard/SelectionBar';
+import { WelcomeDialog, shouldShowWelcome } from '../components/clipboard/WelcomeDialog';
 
 type TypeFilter = 'all' | 'text' | 'image' | 'file' | 'media';
 
@@ -37,6 +41,7 @@ export default function ClipboardPage() {
   const [selectedItem, setSelectedItem] = useState<ClipboardItem | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [smallUpload, setSmallUpload] = useState<{ fileName: string; fileSize: number } | null>(null);
+  const [welcomeOpen, setWelcomeOpen] = useState(() => shouldShowWelcome());
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -192,17 +197,24 @@ export default function ClipboardPage() {
       <Box sx={{ height: 56 }} />
 
       {/* Page header */}
-      <Box sx={{ mb: 3 }}>
-        <Typography variant="h5" fontWeight={600} gutterBottom>
-          My Clipboard
-        </Typography>
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ display: { xs: 'none', sm: 'block' } }}
-        >
-          Paste text or drop files anywhere on this page.
-        </Typography>
+      <Box sx={{ mb: 3, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <Box>
+          <Typography variant="h5" fontWeight={600} gutterBottom>
+            My Clipboard
+          </Typography>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ display: { xs: 'none', sm: 'block' } }}
+          >
+            Paste text or drop files anywhere on this page.
+          </Typography>
+        </Box>
+        <Tooltip title="How it works">
+          <IconButton onClick={() => setWelcomeOpen(true)} size="small" color="default">
+            <HelpOutline />
+          </IconButton>
+        </Tooltip>
       </Box>
 
       {/* Type filter chips */}
@@ -281,6 +293,9 @@ export default function ClipboardPage() {
         progress={uploadProgress}
         onCancel={isMultipartUploading ? abortMultipart : () => {}}
       />
+
+      {/* Welcome / help dialog */}
+      <WelcomeDialog open={welcomeOpen} onClose={() => setWelcomeOpen(false)} />
 
       {/* Drag-and-drop overlay */}
       <DropOverlay visible={isDragOver} />

@@ -1,9 +1,13 @@
 import { useRef, useCallback, useState, ChangeEvent } from 'react';
+import Box from '@mui/material/Box';
 import Button from '@mui/material/Button';
-import Paper from '@mui/material/Paper';
+import IconButton from '@mui/material/IconButton';
+import Tooltip from '@mui/material/Tooltip';
 import Stack from '@mui/material/Stack';
 import Snackbar from '@mui/material/Snackbar';
 import Alert from '@mui/material/Alert';
+import useMediaQuery from '@mui/material/useMediaQuery';
+import { useTheme } from '@mui/material/styles';
 import CloudUpload from '@mui/icons-material/CloudUpload';
 import ContentPaste from '@mui/icons-material/ContentPaste';
 import CameraAlt from '@mui/icons-material/CameraAlt';
@@ -19,6 +23,8 @@ export function ClipboardActionBar({ onFileSelected, onItemCreated }: ClipboardA
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const [error, setError] = useState<string | null>(null);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const handleFileChange = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
@@ -26,7 +32,6 @@ export function ClipboardActionBar({ onFileSelected, onItemCreated }: ClipboardA
       for (const file of files) {
         onFileSelected(file);
       }
-      // Reset so the same file can be re-selected
       if (e.target) e.target.value = '';
     },
     [onFileSelected],
@@ -56,8 +61,7 @@ export function ClipboardActionBar({ onFileSelected, onItemCreated }: ClipboardA
 
   return (
     <>
-      <Paper
-        elevation={3}
+      <Box
         sx={{
           position: 'fixed',
           top: { xs: 56, sm: 64 },
@@ -68,39 +72,82 @@ export function ClipboardActionBar({ onFileSelected, onItemCreated }: ClipboardA
           justifyContent: 'center',
           py: 1,
           px: 2,
+          pointerEvents: 'none',
         }}
       >
-        <Stack direction="row" spacing={1.5}>
-          <Button
-            variant="contained"
-            color="success"
-            size="large"
-            startIcon={<ContentPaste />}
-            onClick={handlePaste}
-          >
-            Paste
-          </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            size="large"
-            startIcon={<CloudUpload />}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            Upload
-          </Button>
-          <Button
-            variant="contained"
-            color="primary"
-            size="large"
-            startIcon={<CameraAlt />}
-            onClick={() => cameraInputRef.current?.click()}
-            sx={{ display: { xs: 'inline-flex', md: 'none' } }}
-          >
-            Camera
-          </Button>
+        <Stack direction="row" spacing={1.5} sx={{ pointerEvents: 'auto' }}>
+          {isMobile ? (
+            <>
+              <Tooltip title="Paste">
+                <IconButton
+                  color="success"
+                  onClick={handlePaste}
+                  sx={{
+                    bgcolor: 'success.main',
+                    color: 'success.contrastText',
+                    '&:hover': { bgcolor: 'success.dark' },
+                    width: 48,
+                    height: 48,
+                  }}
+                >
+                  <ContentPaste />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Upload">
+                <IconButton
+                  color="primary"
+                  onClick={() => fileInputRef.current?.click()}
+                  sx={{
+                    bgcolor: 'primary.main',
+                    color: 'primary.contrastText',
+                    '&:hover': { bgcolor: 'primary.dark' },
+                    width: 48,
+                    height: 48,
+                  }}
+                >
+                  <CloudUpload />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Camera">
+                <IconButton
+                  color="primary"
+                  onClick={() => cameraInputRef.current?.click()}
+                  sx={{
+                    bgcolor: 'primary.main',
+                    color: 'primary.contrastText',
+                    '&:hover': { bgcolor: 'primary.dark' },
+                    width: 48,
+                    height: 48,
+                  }}
+                >
+                  <CameraAlt />
+                </IconButton>
+              </Tooltip>
+            </>
+          ) : (
+            <>
+              <Button
+                variant="contained"
+                color="success"
+                size="large"
+                startIcon={<ContentPaste />}
+                onClick={handlePaste}
+              >
+                Paste
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                size="large"
+                startIcon={<CloudUpload />}
+                onClick={() => fileInputRef.current?.click()}
+              >
+                Upload
+              </Button>
+            </>
+          )}
         </Stack>
-      </Paper>
+      </Box>
 
       <input
         ref={fileInputRef}
