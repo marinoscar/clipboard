@@ -187,6 +187,10 @@ log "[4/6] Restarting services..."
 docker compose -f "${COMPOSE_FILE}" up -d
 log "  All containers started."
 
+# Restart nginx so it resolves the new upstream container IPs
+docker compose -f "${COMPOSE_FILE}" restart nginx 2>/dev/null || true
+log "  Nginx restarted."
+
 # Wait for API to be ready
 log "  Waiting for API to initialize..."
 API_READY=false
