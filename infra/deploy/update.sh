@@ -44,6 +44,17 @@ NO_CACHE=false
 SKIP_PROXY=false
 
 # ---------------------------------------------------------------------------
+# Logging — output goes to both terminal and a timestamped log file
+# ---------------------------------------------------------------------------
+LOG_DIR="${CLIPBOARD_DIR}/logs"
+mkdir -p "${LOG_DIR}"
+LOG_FILE="${LOG_DIR}/update-$(date '+%Y%m%d-%H%M%S').log"
+exec > >(tee -a "${LOG_FILE}") 2>&1
+
+# Keep only the last 10 log files
+ls -1t "${LOG_DIR}"/update-*.log 2>/dev/null | tail -n +11 | xargs -r rm -f
+
+# ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 log() { echo "[clipboard-update] $(date '+%H:%M:%S') $*"; }
