@@ -45,7 +45,7 @@ model ClipboardItem {
   type         String   // text, image, file, media
   content      String?  // Text content (for text type)
   fileName     String?  @map("file_name")
-  fileSize     Int?     @map("file_size")
+  fileSize     BigInt?  @map("file_size")
   mimeType     String?  @map("mime_type")
   storageKey   String?  @map("storage_key")
   thumbnailKey String?  @map("thumbnail_key")

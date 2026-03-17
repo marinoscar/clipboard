@@ -19,6 +19,13 @@ export class PrismaService
   }
 
   async onModuleInit() {
+    // Convert BigInt fields to Number for JSON serialization safety.
+    // All file sizes fit comfortably within Number.MAX_SAFE_INTEGER (~9 PB).
+    this.$use(async (params, next) => {
+      const result = await next(params);
+      return this.convertBigInts(result);
+    });
+
     await this.$connect();
     this.logger.log('Database connected');
 
@@ -39,5 +46,19 @@ export class PrismaService
   async onModuleDestroy() {
     await this.$disconnect();
     this.logger.log('Database disconnected');
+  }
+
+  private convertBigInts(data: unknown): unknown {
+    if (data === null || data === undefined) return data;
+    if (typeof data === 'bigint') return Number(data);
+    if (Array.isArray(data)) return data.map((item) => this.convertBigInts(item));
+    if (typeof data === 'object' && data !== null) {
+      const result: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(data)) {
+        result[key] = this.convertBigInts(value);
+      }
+      return result;
+    }
+    return data;
   }
 }

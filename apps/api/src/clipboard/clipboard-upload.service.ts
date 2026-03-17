@@ -26,7 +26,15 @@ export class ClipboardUploadService {
   ) {}
 
   async initUpload(userId: string, dto: InitUploadDto) {
-    const partSize = this.configService.get<number>('storage.partSize', 10 * 1024 * 1024);
+    const minPartSize = this.configService.get<number>('storage.partSize', 10 * 1024 * 1024);
+    // Dynamically size parts: target ~100 parts max, minimum 10MB, maximum 100MB.
+    // This keeps large uploads (5GB) to ~50-100 parts instead of 500+.
+    const maxPartSize = 100 * 1024 * 1024; // 100 MB
+    const targetParts = 100;
+    const partSize = Math.min(
+      maxPartSize,
+      Math.max(minPartSize, Math.ceil(dto.fileSize / targetParts)),
+    );
     const totalParts = Math.ceil(dto.fileSize / partSize);
 
     const itemId = randomUUID();

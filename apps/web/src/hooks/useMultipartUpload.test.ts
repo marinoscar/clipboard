@@ -29,28 +29,43 @@ const mockedComplete = vi.mocked(completeMultipartUpload);
 const mockedAbort = vi.mocked(abortMultipartUpload);
 
 // ---------------------------------------------------------------------------
-// XHR mock
+// XHR mock — supports multiple concurrent instances
 // ---------------------------------------------------------------------------
-const mockXHR = {
-  open: vi.fn(),
-  send: vi.fn(),
-  setRequestHeader: vi.fn(),
-  upload: { onprogress: null as ((e: ProgressEvent) => void) | null },
-  onload: null as (() => void) | null,
-  onerror: null as (() => void) | null,
-  onabort: null as (() => void) | null,
-  status: 200,
-  getResponseHeader: vi.fn().mockReturnValue('"etag-value"'),
-  abort: vi.fn(),
-};
+interface MockXHRInstance {
+  open: ReturnType<typeof vi.fn>;
+  send: ReturnType<typeof vi.fn>;
+  setRequestHeader: ReturnType<typeof vi.fn>;
+  upload: { onprogress: ((e: ProgressEvent) => void) | null };
+  onload: (() => void) | null;
+  onerror: (() => void) | null;
+  onabort: (() => void) | null;
+  status: number;
+  getResponseHeader: ReturnType<typeof vi.fn>;
+  abort: ReturnType<typeof vi.fn>;
+}
 
-// Must be a real constructor function (not an arrow function) so that
-// `new XMLHttpRequest()` works. Returning mockXHR from the constructor causes
-// JS to use that object as the result of `new`, so all property assignments
-// (xhr.onload = ..., xhr.upload.onprogress = ...) land on mockXHR directly.
+let xhrInstances: MockXHRInstance[] = [];
+
+function createMockXHR(): MockXHRInstance {
+  const instance: MockXHRInstance = {
+    open: vi.fn(),
+    send: vi.fn(),
+    setRequestHeader: vi.fn(),
+    upload: { onprogress: null },
+    onload: null,
+    onerror: null,
+    onabort: null,
+    status: 200,
+    getResponseHeader: vi.fn().mockReturnValue('"etag-value"'),
+    abort: vi.fn(),
+  };
+  xhrInstances.push(instance);
+  return instance;
+}
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 vi.stubGlobal('XMLHttpRequest', function MockXHR(this: any) {
-  return mockXHR;
+  return createMockXHR();
 });
 
 // ---------------------------------------------------------------------------
@@ -59,7 +74,6 @@ vi.stubGlobal('XMLHttpRequest', function MockXHR(this: any) {
 const PART_SIZE = 10 * 1024 * 1024; // 10 MB
 
 function makeFile(sizeBytes: number, name = 'test.bin'): File {
-  // Create a Blob of the exact size, then cast to File
   const content = new Uint8Array(sizeBytes);
   return new File([content], name, { type: 'application/octet-stream' });
 }
@@ -86,21 +100,30 @@ function makeClipboardItem(overrides: Partial<ClipboardItem> = {}): ClipboardIte
   };
 }
 
+/** Resolve all pending XHR instances by triggering onload on each. */
+async function resolveAllPendingXHRs() {
+  // Allow microtasks to settle so XHR instances are created
+  await new Promise((r) => setTimeout(r, 0));
+
+  let safety = 0;
+  while (safety++ < 20) {
+    const pending = xhrInstances.filter((x) => x.onload !== null && x.send.mock.calls.length > 0);
+    if (pending.length === 0) break;
+    for (const xhr of pending) {
+      act(() => { xhr.onload!(); });
+    }
+    // Allow the next round of async work
+    await new Promise((r) => setTimeout(r, 0));
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Tests
 // ---------------------------------------------------------------------------
 describe('useMultipartUpload', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset XHR event handlers between tests
-    mockXHR.onload = null;
-    mockXHR.onerror = null;
-    mockXHR.onabort = null;
-    mockXHR.upload.onprogress = null;
-    mockXHR.status = 200;
-    mockXHR.getResponseHeader.mockReturnValue('"etag-value"');
-    // abortMultipartUpload is called in the catch path of startUpload;
-    // ensure it always returns a Promise so .catch() does not throw.
+    xhrInstances = [];
     mockedAbort.mockResolvedValue(undefined);
   });
 
@@ -146,18 +169,12 @@ describe('useMultipartUpload', () => {
       const { result } = renderHook(() => useMultipartUpload());
 
       let uploadPromise: Promise<ClipboardItem>;
-
       act(() => {
         uploadPromise = result.current.startUpload(file);
       });
 
-      // Allow the init call to settle, then trigger the first XHR load
-      await waitFor(() => expect(mockXHR.onload).not.toBeNull());
-      act(() => { mockXHR.onload!(); });
-
-      // After part 1 is done, part 2's XHR is set up — trigger it
-      await waitFor(() => expect(mockedRecord).toHaveBeenCalledTimes(1));
-      act(() => { mockXHR.onload!(); });
+      // Resolve all XHR part uploads (concurrent)
+      await resolveAllPendingXHRs();
 
       const returnedItem = await uploadPromise!;
 
@@ -169,6 +186,7 @@ describe('useMultipartUpload', () => {
       });
       expect(mockedGetUrl).toHaveBeenCalledTimes(2);
       expect(mockedRecord).toHaveBeenCalledTimes(2);
+      // Parts should be sorted by partNumber in the completion call
       expect(mockedComplete).toHaveBeenCalledWith('item-1', [
         { partNumber: 1, eTag: 'etag-value' },
         { partNumber: 2, eTag: 'etag-value' },
@@ -202,29 +220,25 @@ describe('useMultipartUpload', () => {
       // isUploading should be true immediately after start
       expect(result.current.isUploading).toBe(true);
 
-      // Trigger XHR progress event for part 1 (50% of that part)
-      await waitFor(() => expect(mockXHR.upload.onprogress).not.toBeNull());
+      // Wait for XHR instances to be created
+      await waitFor(() => expect(xhrInstances.length).toBeGreaterThan(0));
+
+      // Trigger progress event on first XHR (50% of that part)
+      const firstXHR = xhrInstances[0];
+      await waitFor(() => expect(firstXHR.upload.onprogress).not.toBeNull());
       act(() => {
-        mockXHR.upload.onprogress!({
+        firstXHR.upload.onprogress!({
           lengthComputable: true,
           loaded: PART_SIZE / 2,
           total: PART_SIZE,
         } as ProgressEvent);
       });
 
-      // Progress should be 25% (half of part 1 out of 2 total parts)
+      // Progress should be ~25% (half of part 1 out of 2 total parts)
       expect(result.current.progress).toBe(25);
 
-      // Complete part 1
-      act(() => { mockXHR.onload!(); });
-
-      await waitFor(() => expect(mockedRecord).toHaveBeenCalledTimes(1));
-
-      // Progress after part 1 completes = 50%
-      expect(result.current.progress).toBe(50);
-
-      // Complete part 2
-      act(() => { mockXHR.onload!(); });
+      // Complete all parts
+      await resolveAllPendingXHRs();
 
       await waitFor(() => expect(result.current.isUploading).toBe(false));
       expect(result.current.progress).toBe(100);
@@ -274,20 +288,23 @@ describe('useMultipartUpload', () => {
         uploadPromise = result.current.startUpload(file);
       });
 
-      // Wait until the first XHR is set up (init has resolved, presigned URL fetched)
-      await waitFor(() => expect(mockXHR.onload).not.toBeNull());
+      // Wait until at least one XHR is set up
+      await waitFor(() => expect(xhrInstances.length).toBeGreaterThan(0));
+      const firstXHR = xhrInstances[0];
+      await waitFor(() => expect(firstXHR.onabort).not.toBeNull());
 
-      // Abort while part 1 upload is in flight
+      // Abort while uploads are in flight
       act(() => {
         result.current.abort();
-        // Simulate the browser calling the XHR onabort handler
-        mockXHR.onabort!();
+        // Simulate the browser calling the XHR onabort handler on all active XHRs
+        for (const xhr of xhrInstances) {
+          if (xhr.onabort) xhr.onabort();
+        }
       });
 
       // Wait for the promise to reject and for React state to settle
       await expect(uploadPromise!).rejects.toThrow('Upload cancelled');
 
-      // State updates are async — wait for them to apply
       await waitFor(() => {
         expect(result.current.isUploading).toBe(false);
       });
