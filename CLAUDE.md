@@ -34,6 +34,11 @@ This file provides guidance for AI assistants working on this codebase.
       src/
       public/
       Dockerfile
+  tools/
+    clipcli/                # CLI tool (Commander.js + TypeScript)
+      bin/clipcli.js        # Entry point
+      src/                  # TypeScript source
+      install.sh            # System-wide install script
   docs/
     specs/                  # Phase specification documents (phases 01-06)
   infra/
@@ -63,9 +68,9 @@ The project is built in 6 sequential phases. Each phase has a detailed spec in `
 
 1. **Separation of Concerns**: UI handles presentation only; API handles all business logic
 2. **Same-Origin Hosting**: UI at `/`, API at `/api`, Swagger at `/api/docs`
-3. **Security by Default**: All API endpoints require JWT authentication unless decorated with `@Public()`
+3. **Security by Default**: All API endpoints require JWT or PAT authentication unless decorated with `@Public()`
 4. **API-First**: All business logic resides in the API layer
-5. **Simplified Auth**: No RBAC tables — just `isAdmin` boolean on User model (Google-only OAuth)
+5. **Simplified Auth**: No RBAC tables — just `isAdmin` boolean on User model (Google OAuth + Personal Access Tokens)
 
 ## MANDATORY: Testing Requirements
 
@@ -185,6 +190,14 @@ cd apps/api && DATABASE_URL="file:./data/clipboard.db" npx prisma migrate dev --
 
 # Apply migrations (production)
 cd apps/api && npx prisma migrate deploy
+
+# CLI tool (clipcli)
+cd tools/clipcli && ./install.sh          # Install globally
+clipcli --help                            # Show all commands
+clipcli auth login                        # Authenticate with a PAT
+clipcli copy "text"                       # Create text item
+clipcli upload ./file.pdf                 # Upload file
+clipcli list --json                       # List items as JSON
 ```
 
 ## Service URLs
@@ -224,7 +237,7 @@ Key variables (see `infra/compose/.env.example` for full list):
 
 - **SQLite** with Prisma ORM (not PostgreSQL)
 - WAL mode enabled via `$queryRawUnsafe('PRAGMA journal_mode=WAL;')` in PrismaService
-- Schema includes all models upfront (User, RefreshToken, ClipboardItem, UploadChunk, SystemSettings)
+- Schema includes all models upfront (User, RefreshToken, PersonalAccessToken, ClipboardItem, UploadChunk, SystemSettings)
 - Migrations in `apps/api/prisma/migrations/`
 
 ## API Endpoints
@@ -233,9 +246,12 @@ Key variables (see `infra/compose/.env.example` for full list):
 - `GET /api/auth/providers` — List enabled OAuth providers (Public)
 - `GET /api/auth/google` — Initiate Google OAuth (Public)
 - `GET /api/auth/google/callback` — OAuth callback (Public)
-- `GET /api/auth/me` — Get current user (JWT)
+- `GET /api/auth/me` — Get current user (JWT or PAT)
 - `POST /api/auth/refresh` — Refresh access token (Cookie)
 - `POST /api/auth/logout` — Logout (JWT)
+- `POST /api/auth/tokens` — Create personal access token (JWT or PAT)
+- `GET /api/auth/tokens` — List user's PATs (JWT or PAT)
+- `DELETE /api/auth/tokens/:id` — Revoke a PAT (JWT or PAT)
 
 ### Clipboard
 - `POST /api/clipboard` — Create text item
@@ -275,6 +291,9 @@ Key variables (see `infra/compose/.env.example` for full list):
 - Google OAuth strategy uses `proxy: true` for reverse proxy compatibility
 - All file uploads go to S3 (never stored locally)
 - Input validation via Zod on all endpoints
+- Personal Access Tokens (PATs) stored as SHA256 hash, prefixed with `clip_`
+- PAT auth handled in JwtAuthGuard — tokens starting with `clip_` bypass JWT validation
+- CLI stores PAT in `~/.config/clipcli/auth.json` with 0o600 permissions
 
 ## Known Gotchas
 

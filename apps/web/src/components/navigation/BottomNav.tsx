@@ -42,7 +42,7 @@ export function BottomNav() {
         value={value}
         onChange={(_, newValue) => {
           setValue(newValue);
-          const routes = ['/', '/archive', ...(user?.isAdmin ? ['/settings'] : [])];
+          const routes = ['/', '/archive', '/settings'];
           navigate(routes[newValue]);
         }}
         showLabels
@@ -50,9 +50,7 @@ export function BottomNav() {
         {[
           <BottomNavigationAction key="clipboard" label="Clipboard" icon={<ContentPasteIcon />} />,
           <BottomNavigationAction key="archive" label="Archive" icon={<Inventory2Icon />} />,
-          ...(user?.isAdmin
-            ? [<BottomNavigationAction key="settings" label="Settings" icon={<SettingsIcon />} />]
-            : []),
+          <BottomNavigationAction key="settings" label="Settings" icon={<SettingsIcon />} />,
         ]}
       </BottomNavigation>
     </Paper>

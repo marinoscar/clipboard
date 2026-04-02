@@ -1,5 +1,4 @@
 import { useEffect, useState, useCallback } from 'react';
-import { Navigate } from 'react-router-dom';
 import Container from '@mui/material/Container';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -10,6 +9,7 @@ import Divider from '@mui/material/Divider';
 import { useAuth } from '../contexts/AuthContext';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
 import { RetentionSettings, RetentionValues } from '../components/settings/RetentionSettings';
+import { PersonalAccessTokens } from '../components/settings/PersonalAccessTokens';
 import { getSystemSettings, updateSystemSettings } from '../services/api';
 
 export default function SettingsPage() {
@@ -73,54 +73,60 @@ export default function SettingsPage() {
     }
   };
 
-  // Wait for auth to resolve before deciding on redirect
   if (authLoading) {
     return <LoadingSpinner fullScreen />;
-  }
-
-  // Non-admins are redirected to home
-  if (!user?.isAdmin) {
-    return <Navigate to="/" replace />;
   }
 
   return (
     <Container maxWidth="md" sx={{ py: { xs: 2, md: 4 } }}>
       <Box sx={{ mb: 3 }}>
         <Typography variant="h5" fontWeight={600} gutterBottom>
-          System Settings
+          Settings
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Configure system-wide behaviour. Only administrators can access this page.
+          Manage your account settings and access tokens.
         </Typography>
       </Box>
 
-      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+      {/* Personal Access Tokens — visible to all users */}
+      <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 }, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
-          Content Retention
+          Personal Access Tokens
         </Typography>
         <Divider sx={{ mb: 3 }} />
-
-        {isLoading && (
-          <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
-            <LoadingSpinner />
-          </Box>
-        )}
-
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
-            {error}
-          </Alert>
-        )}
-
-        {!isLoading && !error && (
-          <RetentionSettings
-            values={retention}
-            onChange={setRetention}
-            onSave={handleSave}
-            saving={saving}
-          />
-        )}
+        <PersonalAccessTokens />
       </Paper>
+
+      {/* Admin-only: Content Retention */}
+      {user?.isAdmin && (
+        <Paper variant="outlined" sx={{ p: { xs: 2, sm: 3 } }}>
+          <Typography variant="h6" gutterBottom>
+            Content Retention
+          </Typography>
+          <Divider sx={{ mb: 3 }} />
+
+          {isLoading && (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+              <LoadingSpinner />
+            </Box>
+          )}
+
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+
+          {!isLoading && !error && (
+            <RetentionSettings
+              values={retention}
+              onChange={setRetention}
+              onSave={handleSave}
+              saving={saving}
+            />
+          )}
+        </Paper>
+      )}
 
       <Snackbar
         open={snackbar.open}

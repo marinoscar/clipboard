@@ -258,6 +258,88 @@ export class AuthService {
     return result.count;
   }
 
+  // ── Personal Access Tokens ──
+
+  async createPat(
+    userId: string,
+    name: string,
+    expiration: '1d' | '30d' | 'never',
+  ) {
+    const rawToken = 'clip_' + randomBytes(16).toString('hex');
+    const tokenHash = this.hashToken(rawToken);
+    const lastChars = rawToken.slice(-4);
+
+    const expiresAt = new Date();
+    if (expiration === '1d') {
+      expiresAt.setDate(expiresAt.getDate() + 1);
+    } else if (expiration === '30d') {
+      expiresAt.setDate(expiresAt.getDate() + 30);
+    } else {
+      // 'never' = 100 years
+      expiresAt.setFullYear(expiresAt.getFullYear() + 100);
+    }
+
+    const pat = await this.prisma.personalAccessToken.create({
+      data: { userId, name, tokenHash, lastChars, expiresAt },
+    });
+
+    return {
+      token: rawToken,
+      id: pat.id,
+      name: pat.name,
+      lastChars: pat.lastChars,
+      expiresAt: pat.expiresAt,
+      createdAt: pat.createdAt,
+    };
+  }
+
+  async validatePat(rawToken: string): Promise<AuthenticatedUser | null> {
+    if (!rawToken.startsWith('clip_')) return null;
+
+    const tokenHash = this.hashToken(rawToken);
+    const pat = await this.prisma.personalAccessToken.findUnique({
+      where: { tokenHash },
+      include: { user: true },
+    });
+
+    if (!pat) return null;
+    if (pat.revokedAt) return null;
+    if (pat.expiresAt < new Date()) return null;
+    if (!pat.user.isActive) return null;
+
+    return pat.user;
+  }
+
+  async listPats(userId: string) {
+    return this.prisma.personalAccessToken.findMany({
+      where: { userId },
+      select: {
+        id: true,
+        name: true,
+        lastChars: true,
+        expiresAt: true,
+        createdAt: true,
+        revokedAt: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async revokePat(userId: string, patId: string) {
+    const pat = await this.prisma.personalAccessToken.findUnique({
+      where: { id: patId },
+    });
+
+    if (!pat || pat.userId !== userId) {
+      throw new UnauthorizedException('Token not found');
+    }
+
+    await this.prisma.personalAccessToken.update({
+      where: { id: patId },
+      data: { revokedAt: new Date() },
+    });
+  }
+
   private hashToken(token: string): string {
     return createHash('sha256').update(token).digest('hex');
   }

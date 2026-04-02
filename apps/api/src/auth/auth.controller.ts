@@ -2,6 +2,9 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
+  Body,
+  Param,
   UseGuards,
   Req,
   Res,
@@ -25,6 +28,7 @@ import { Public } from './decorators/public.decorator';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { RequestUser } from './interfaces/authenticated-user.interface';
 import { GoogleProfile } from './strategies/google.strategy';
+import { CreatePatDto } from './dto/create-pat.dto';
 
 const REFRESH_TOKEN_COOKIE = 'refresh_token';
 const COOKIE_OPTIONS = {
@@ -171,5 +175,45 @@ export class AuthController {
     const refreshToken = req.cookies[REFRESH_TOKEN_COOKIE];
     await this.authService.logout(user.id, refreshToken);
     res.clearCookie(REFRESH_TOKEN_COOKIE, { path: '/api/auth' });
+  }
+
+  // ── Personal Access Tokens ──
+
+  /**
+   * POST /auth/tokens
+   */
+  @Post('tokens')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Create a personal access token' })
+  @ApiResponse({ status: 201, description: 'Token created (raw token returned once)' })
+  async createToken(
+    @CurrentUser() user: RequestUser,
+    @Body() dto: CreatePatDto,
+  ) {
+    return this.authService.createPat(user.id, dto.name, dto.expiration);
+  }
+
+  /**
+   * GET /auth/tokens
+   */
+  @Get('tokens')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List personal access tokens' })
+  async listTokens(@CurrentUser() user: RequestUser) {
+    return this.authService.listPats(user.id);
+  }
+
+  /**
+   * DELETE /auth/tokens/:id
+   */
+  @Delete('tokens/:id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Revoke a personal access token' })
+  async revokeToken(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+  ): Promise<void> {
+    await this.authService.revokePat(user.id, id);
   }
 }

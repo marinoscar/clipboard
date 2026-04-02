@@ -73,12 +73,10 @@ export function UserMenu() {
           <ListItemText>Archive</ListItemText>
         </MenuItem>
 
-        {user.isAdmin && (
-          <MenuItem onClick={() => handleNavigate('/settings')}>
-            <ListItemIcon><SettingsIcon fontSize="small" /></ListItemIcon>
-            <ListItemText>Settings</ListItemText>
-          </MenuItem>
-        )}
+        <MenuItem onClick={() => handleNavigate('/settings')}>
+          <ListItemIcon><SettingsIcon fontSize="small" /></ListItemIcon>
+          <ListItemText>Settings</ListItemText>
+        </MenuItem>
 
         <MenuItem onClick={() => handleNavigate('/help')}>
           <ListItemIcon><HelpIcon fontSize="small" /></ListItemIcon>

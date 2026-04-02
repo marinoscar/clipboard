@@ -94,16 +94,16 @@ describe('BottomNav', () => {
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
-  it('does not render Settings tab when the user is not an admin', () => {
+  it('renders Settings tab for non-admin users', () => {
     renderBottomNav(makeUser({ isAdmin: false }));
 
-    expect(screen.queryByText('Settings')).not.toBeInTheDocument();
+    expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
-  it('does not render Settings tab when there is no authenticated user', () => {
+  it('renders Settings tab when there is no authenticated user', () => {
     renderBottomNav(null);
 
-    expect(screen.queryByText('Settings')).not.toBeInTheDocument();
+    expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
   // ----------------------------------------------------------------

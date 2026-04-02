@@ -317,6 +317,36 @@ export async function getPublicDownloadUrl(shareToken: string): Promise<{ url: s
   return api.get<{ url: string }>(`/share/${shareToken}/download`, { skipAuth: true });
 }
 
+// Personal Access Tokens API
+
+export interface PersonalAccessToken {
+  id: string;
+  name: string;
+  lastChars: string;
+  expiresAt: string;
+  createdAt: string;
+  revokedAt: string | null;
+}
+
+export interface CreatePatResponse extends PersonalAccessToken {
+  token: string;
+}
+
+export async function createPersonalAccessToken(
+  name: string,
+  expiration: '1d' | '30d' | 'never',
+): Promise<CreatePatResponse> {
+  return api.post<CreatePatResponse>('/auth/tokens', { name, expiration });
+}
+
+export async function listPersonalAccessTokens(): Promise<PersonalAccessToken[]> {
+  return api.get<PersonalAccessToken[]>('/auth/tokens');
+}
+
+export async function revokePersonalAccessToken(id: string): Promise<void> {
+  return api.delete<void>(`/auth/tokens/${id}`);
+}
+
 // System settings API
 
 export async function getSystemSettings(): Promise<Record<string, unknown>> {
