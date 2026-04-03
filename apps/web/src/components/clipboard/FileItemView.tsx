@@ -14,6 +14,7 @@ import Download from '@mui/icons-material/Download';
 import InsertDriveFile from '@mui/icons-material/InsertDriveFile';
 import { ClipboardItem } from '../../types';
 import { getDownloadUrl } from '../../services/api';
+import { VideoPlayer } from './VideoPlayer';
 
 interface FileItemViewProps {
   item: ClipboardItem;
@@ -34,6 +35,7 @@ export function FileItemView({ item, open, onClose }: FileItemViewProps) {
   const [urlError, setUrlError] = useState<string | null>(null);
 
   const isImage = item.type === 'image' || item.mimeType?.startsWith('image/');
+  const isVideo = item.mimeType?.startsWith('video/');
 
   useEffect(() => {
     if (!open) return;
@@ -135,6 +137,22 @@ export function FileItemView({ item, open, onClose }: FileItemViewProps) {
                 />
               ) : null}
             </Box>
+          </>
+        )}
+
+        {/* Video player */}
+        {isVideo && (
+          <>
+            <Divider sx={{ my: 2 }} />
+            {isLoadingUrl ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : urlError ? (
+              <Typography color="error" variant="body2">{urlError}</Typography>
+            ) : downloadUrl ? (
+              <VideoPlayer src={downloadUrl} title={item.fileName || undefined} />
+            ) : null}
           </>
         )}
       </DialogContent>

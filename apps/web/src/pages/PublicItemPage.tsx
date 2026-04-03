@@ -9,10 +9,12 @@ import IconButton from '@mui/material/IconButton';
 import Tooltip from '@mui/material/Tooltip';
 import Divider from '@mui/material/Divider';
 import Alert from '@mui/material/Alert';
+import CircularProgress from '@mui/material/CircularProgress';
 import ContentCopy from '@mui/icons-material/ContentCopy';
 import Download from '@mui/icons-material/Download';
 import InsertDriveFile from '@mui/icons-material/InsertDriveFile';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
+import { VideoPlayer } from '../components/clipboard/VideoPlayer';
 import { getPublicItem, getPublicDownloadUrl } from '../services/api';
 import type { ClipboardItem } from '../types';
 
@@ -146,6 +148,56 @@ function ImageContent({ item, shareToken }: { item: ClipboardItem; shareToken: s
   );
 }
 
+function VideoContent({ item, shareToken }: { item: ClipboardItem; shareToken: string }) {
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  useEffect(() => {
+    getPublicDownloadUrl(shareToken)
+      .then(({ url }) => setDownloadUrl(url))
+      .catch(() => {});
+  }, [shareToken]);
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    try {
+      const { url } = await getPublicDownloadUrl(shareToken);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      // silently fail
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {downloadUrl ? (
+        <VideoPlayer src={downloadUrl} title={item.fileName || undefined} />
+      ) : (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      )}
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, alignItems: 'center' }}>
+        <Typography variant="body2" color="text.secondary">
+          {item.fileName || 'Video'}
+          {item.fileSize != null ? ` · ${formatFileSize(item.fileSize)}` : ''}
+        </Typography>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<Download />}
+          onClick={handleDownload}
+          disabled={isDownloading}
+        >
+          Download
+        </Button>
+      </Box>
+    </Box>
+  );
+}
+
 export default function PublicItemPage() {
   const { shareToken } = useParams<{ shareToken: string }>();
   const [item, setItem] = useState<ClipboardItem | null>(null);
@@ -231,7 +283,10 @@ export default function PublicItemPage() {
               {item.type === 'image' && shareToken && (
                 <ImageContent item={item} shareToken={shareToken} />
               )}
-              {(item.type === 'file' || item.type === 'media') && shareToken && (
+              {item.type === 'media' && item.mimeType?.startsWith('video/') && shareToken && (
+                <VideoContent item={item} shareToken={shareToken} />
+              )}
+              {((item.type === 'file') || (item.type === 'media' && !item.mimeType?.startsWith('video/'))) && shareToken && (
                 <FileContent item={item} shareToken={shareToken} />
               )}
             </Paper>
