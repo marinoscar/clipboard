@@ -30,52 +30,77 @@ clipcli communicates with the Clipboard API using Personal Access Tokens (PATs):
 
 ---
 
-## Installation
+## Install, Update & Uninstall
 
 Requires **git** and **Node.js >= 18**.
 
 ### Install
 
+Run this single command to install `clipcli` on any Linux/macOS machine:
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/marinoscar/clipboard/main/tools/clipcli/install.sh | bash
 ```
 
-That's it. The installer checks prerequisites, clones the repo to `~/.clipcli`, builds the CLI, and creates a global `clipcli` command.
+This will:
+- Check that `git`, `node` (>= 18), and `npm` are installed
+- Clone the repository to `~/.clipcli`
+- Install dependencies and build the TypeScript source
+- Create a global `clipcli` command at `/usr/local/bin/clipcli`
+- Create a global `clipcli-update` command for easy updates
+- Verify the installation
+
+Once complete, confirm it works:
+
+```bash
+clipcli --version
+# 1.0.0
+```
 
 ### Update
 
+To update to the latest version, use any of these methods:
+
 ```bash
-# Option 1: Use the convenience command (created during install)
+# Easiest — use the update command (created during install)
 clipcli-update
 
-# Option 2: Run the same curl command again (it pulls instead of cloning)
+# Or re-run the install command (it detects the existing install and pulls latest)
 curl -fsSL https://raw.githubusercontent.com/marinoscar/clipboard/main/tools/clipcli/install.sh | bash
 
-# Option 3: Run the local install script directly
+# Or run the local install script directly
 ~/.clipcli/tools/clipcli/install.sh
 ```
+
+All three do the same thing: pull the latest code, rebuild, and re-link.
 
 ### Uninstall
 
 ```bash
-# Option 1: Via curl
-curl -fsSL https://raw.githubusercontent.com/marinoscar/clipboard/main/tools/clipcli/install.sh | bash -s -- --uninstall
-
-# Option 2: Via the local install script
+# Run locally
 ~/.clipcli/tools/clipcli/install.sh --uninstall
+
+# Or via curl
+curl -fsSL https://raw.githubusercontent.com/marinoscar/clipboard/main/tools/clipcli/install.sh | bash -s -- --uninstall
 ```
 
-This removes `clipcli` and `clipcli-update` from `/usr/local/bin/`. The repo at `~/.clipcli` is kept — delete it manually with `rm -rf ~/.clipcli` if desired.
+This removes `clipcli` and `clipcli-update` from `/usr/local/bin/`. To also remove the source code and config:
 
-### What the installer does
+```bash
+rm -rf ~/.clipcli           # Remove the cloned repository
+rm -rf ~/.config/clipcli    # Remove auth tokens and config
+```
 
-1. Checks prerequisites (git, Node.js >= 18, npm)
-2. Clones the repo to `~/.clipcli` (or pulls latest if already cloned)
-3. Installs npm dependencies
-4. Builds TypeScript
-5. Symlinks `clipcli` to `/usr/local/bin/clipcli`
-6. Creates a `clipcli-update` convenience command
-7. Verifies the installation
+### Version
+
+Check the installed version at any time:
+
+```bash
+clipcli --version
+# 1.0.0
+```
+
+The version is defined in `src/version.ts` and follows [Semantic Versioning](https://semver.org/) (`MAJOR.MINOR.PATCH`).
 
 ### Environment variables
 
@@ -84,6 +109,8 @@ This removes `clipcli` and `clipcli-update` from `/usr/local/bin/`. The repo at 
 | `CLIPCLI_INSTALL_DIR` | Override the installation directory | `~/.clipcli` |
 
 ### Manual installation
+
+If you prefer not to use the installer:
 
 ```bash
 git clone https://github.com/marinoscar/clipboard.git ~/.clipcli
@@ -221,12 +248,12 @@ clipcli list -q
 
 | Flag | Description |
 |------|-------------|
+| `-V, --version` | Display the current clipcli version |
 | `--json` | Output all results as machine-readable JSON. Format: `{"success": true, "data": ...}` or `{"success": false, "error": "..."}`. Errors go to stderr, data to stdout. Parse with `jq .data`. |
 | `-q, --quiet` | Minimal output mode. Print only essential values with no formatting. For list commands, prints one ID per line. For copy/upload, prints the item ID. |
 | `--server <url>` | Override the Clipboard server URL for this invocation only. Takes precedence over config file and `CLIPCLI_SERVER_URL` environment variable. |
 | `--no-color` | Disable all ANSI color codes in output. |
 | `-v, --verbose` | Enable verbose logging. Shows HTTP request details and debug info. |
-| `-V, --version` | Display the current clipcli version. |
 
 ---
 
@@ -687,25 +714,6 @@ Stored at `~/.config/clipcli/auth.json` with permissions `0600` (owner read/writ
 
 ---
 
-## Versioning
-
-clipcli uses **calendar-based versioning**: `YYYY.M.patch`
-
-| Component | Meaning | Example |
-|-----------|---------|---------|
-| `YYYY` | Release year | `2026` |
-| `M` | Release month (no leading zero) | `4` = April |
-| `patch` | Sequential release within the month | `1`, `2`, `3`, ... |
-
-The version is defined in `src/version.ts`. To bump the version, edit that file and run `./install.sh`.
-
-```bash
-clipcli --version
-# 2026.4.1
-```
-
----
-
 ## Development
 
 ```bash
@@ -727,7 +735,7 @@ node tools/clipcli/bin/clipcli.js --help
 ```
 tools/clipcli/
 ├── bin/clipcli.js          # Entry point (shebang script)
-├── install.sh              # System-wide installer (Linux)
+├── install.sh              # Installer (works via curl pipe and locally)
 ├── src/
 │   ├── index.ts            # Commander setup, global flags, help examples
 │   ├── version.ts          # Version constant (single source of truth)

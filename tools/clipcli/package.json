@@ -1,6 +1,6 @@
 {
   "name": "@clipboard/clipcli",
-  "version": "2026.4.1",
+  "version": "1.0.0",
   "description": "CLI tool for the Clipboard web application — designed for humans and AI agents",
   "type": "module",
   "main": "dist/index.js",
