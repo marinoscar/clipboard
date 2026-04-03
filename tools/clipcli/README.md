@@ -32,35 +32,67 @@ clipcli communicates with the Clipboard API using Personal Access Tokens (PATs):
 
 ## Installation
 
-The CLI is part of the Clipboard monorepo and uses npm workspaces.
+The CLI is part of the Clipboard monorepo. Requires **Node.js >= 18**.
 
-### System-wide installation (recommended)
+### One-liner install (from scratch)
 
-The included `install.sh` script installs `clipcli` so it can be invoked from anywhere. It also handles updates — just run it again.
+Clone the repo and run the install script:
 
 ```bash
-# Install (or update)
-cd tools/clipcli
-./install.sh
-
-# Now available globally
-clipcli --version
-# 2026.4.1
-
-# Uninstall
-./install.sh --uninstall
+git clone https://github.com/marinoscar/clipboard.git && clipboard/tools/clipcli/install.sh
 ```
 
-**What `install.sh` does:**
+### If you already have the repo cloned
+
+```bash
+cd /path/to/clipboard/tools/clipcli
+./install.sh
+```
+
+### Full path reference
+
+If the repo is cloned at `~/git/clipboard`, the install script is at:
+
+```bash
+~/git/clipboard/tools/clipcli/install.sh              # Install
+~/git/clipboard/tools/clipcli/install.sh --update      # Pull latest + reinstall
+~/git/clipboard/tools/clipcli/install.sh --uninstall   # Remove
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| *(none)* | Install or reinstall from current code |
+| `--update` | Pull latest code from `origin/main`, then reinstall |
+| `--uninstall` | Remove the `clipcli` symlink from `/usr/local/bin` |
+
+### What `install.sh` does
+
 1. Checks prerequisites (Node.js >= 18, npm)
 2. Installs npm dependencies (detects monorepo workspace)
 3. Builds TypeScript
 4. Creates a symlink at `/usr/local/bin/clipcli` -> `tools/clipcli/bin/clipcli.js`
 5. Verifies the installation
 
-**To update:** pull the latest code and run `./install.sh` again. It rebuilds and re-links.
+After install:
 
-### Manual installation
+```bash
+clipcli --version
+# 2026.4.1
+```
+
+### Update to latest version
+
+```bash
+# Option 1: Use the --update flag (pulls + rebuilds in one step)
+~/git/clipboard/tools/clipcli/install.sh --update
+
+# Option 2: Manual pull + reinstall
+cd ~/git/clipboard && git pull && tools/clipcli/install.sh
+```
+
+### Manual installation (without install.sh)
 
 ```bash
 # From the repository root

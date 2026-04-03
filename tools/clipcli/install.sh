@@ -12,6 +12,7 @@
 #
 # Usage:
 #   ./install.sh              # Install or update (may prompt for sudo)
+#   ./install.sh --update     # Pull latest code and reinstall
 #   ./install.sh --uninstall  # Remove clipcli from the system
 #
 # The script is idempotent — running it again performs an update.
@@ -51,6 +52,21 @@ fail()    { echo -e "${RED}${BOLD}[error]${RESET} $*" >&2; exit 1; }
 # ---------------------------------------------------------------------------
 # Uninstall
 # ---------------------------------------------------------------------------
+
+if [[ "${1:-}" == "--update" ]]; then
+  info "Pulling latest code..."
+
+  # Find the repo root (two levels up from tools/clipcli)
+  REPO_ROOT="${SCRIPT_DIR}/../.."
+  if [ -d "${REPO_ROOT}/.git" ]; then
+    (cd "${REPO_ROOT}" && git pull origin main 2>&1 | tail -5)
+    success "Code updated"
+  else
+    fail "Not a git repository. Clone the repo first:\n  git clone https://github.com/marinoscar/clipboard.git"
+  fi
+
+  # Continue with normal install flow (don't exit)
+fi
 
 if [[ "${1:-}" == "--uninstall" ]]; then
   info "Uninstalling clipcli..."
