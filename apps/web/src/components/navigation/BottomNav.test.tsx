@@ -94,14 +94,20 @@ describe('BottomNav', () => {
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 
-  it('renders Settings tab for non-admin users', () => {
-    renderBottomNav(makeUser({ isAdmin: false }));
+  it('renders Users tab for admin users', () => {
+    renderBottomNav(makeUser({ isAdmin: true }));
 
-    expect(screen.getByText('Settings')).toBeInTheDocument();
+    expect(screen.getByText('Users')).toBeInTheDocument();
   });
 
-  it('renders Settings tab when there is no authenticated user', () => {
-    renderBottomNav(null);
+  it('does not render Users tab for non-admin users', () => {
+    renderBottomNav(makeUser({ isAdmin: false }));
+
+    expect(screen.queryByText('Users')).not.toBeInTheDocument();
+  });
+
+  it('renders Settings tab for non-admin users', () => {
+    renderBottomNav(makeUser({ isAdmin: false }));
 
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
@@ -156,11 +162,12 @@ describe('BottomNav', () => {
     }).not.toThrow();
   });
 
-  it('Clipboard and Archive tabs are always visible for an admin', () => {
+  it('all tabs visible for an admin', () => {
     renderBottomNav(makeUser({ isAdmin: true }));
 
     expect(screen.getByText('Clipboard')).toBeInTheDocument();
     expect(screen.getByText('Archive')).toBeInTheDocument();
+    expect(screen.getByText('Users')).toBeInTheDocument();
     expect(screen.getByText('Settings')).toBeInTheDocument();
   });
 });

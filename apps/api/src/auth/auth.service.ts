@@ -3,6 +3,8 @@ import {
   Logger,
   UnauthorizedException,
   ForbiddenException,
+  ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -48,34 +50,37 @@ export class AuthService {
       });
 
       if (existingUser) {
-        // Update existing user with googleId
+        // Pre-registered user logging in for the first time — link Google profile
         user = await this.prisma.user.update({
           where: { id: existingUser.id },
-          data: { googleId: profile.id },
+          data: {
+            googleId: profile.id,
+            displayName: existingUser.displayName || profile.displayName,
+            profileImageUrl: existingUser.profileImageUrl || profile.picture || null,
+          },
         });
       } else {
-        // Create new user
-        this.logger.log(`Creating new user: ${email}`);
-
-        // Check if this should be the initial admin
-        const userCount = await this.prisma.user.count();
+        // Check if this is the initial admin (bootstrap)
         const initialAdminEmail = this.configService.get<string>('initialAdminEmail');
-        const shouldBeAdmin = userCount === 0 ||
-          (initialAdminEmail && email === initialAdminEmail.toLowerCase());
+        const isInitialAdmin = initialAdminEmail && email === initialAdminEmail.toLowerCase();
 
+        if (!isInitialAdmin) {
+          this.logger.warn(`Access denied for unregistered email: ${email}`);
+          throw new ForbiddenException('Access denied. Contact an administrator to get access.');
+        }
+
+        // Auto-create the initial admin
+        this.logger.log(`Creating initial admin user: ${email}`);
         user = await this.prisma.user.create({
           data: {
             email,
             displayName: profile.displayName,
             profileImageUrl: profile.picture || null,
             googleId: profile.id,
-            isAdmin: shouldBeAdmin || false,
+            isAdmin: true,
           },
         });
-
-        if (shouldBeAdmin) {
-          this.logger.log(`Admin role assigned to first user: ${email}`);
-        }
+        this.logger.log(`Admin role assigned to initial user: ${email}`);
       }
     }
 
@@ -338,6 +343,73 @@ export class AuthService {
       where: { id: patId },
       data: { revokedAt: new Date() },
     });
+  }
+
+  // ── User Management ──
+
+  async listUsers() {
+    return this.prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        profileImageUrl: true,
+        isActive: true,
+        isAdmin: true,
+        googleId: true,
+        createdAt: true,
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  async addAllowedUser(email: string) {
+    const normalized = email.toLowerCase().trim();
+
+    const existing = await this.prisma.user.findUnique({
+      where: { email: normalized },
+    });
+    if (existing) {
+      throw new ConflictException('User with this email already exists');
+    }
+
+    const user = await this.prisma.user.create({
+      data: {
+        email: normalized,
+        isActive: true,
+        isAdmin: false,
+      },
+    });
+
+    this.logger.log(`Allowed user added: ${normalized}`);
+
+    return {
+      id: user.id,
+      email: user.email,
+      isActive: user.isActive,
+      isAdmin: user.isAdmin,
+      createdAt: user.createdAt,
+    };
+  }
+
+  async removeUser(adminId: string, userId: string) {
+    if (adminId === userId) {
+      throw new BadRequestException('Cannot remove your own account');
+    }
+
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    await this.prisma.user.delete({
+      where: { id: userId },
+    });
+
+    this.logger.log(`User removed: ${user.email}`);
   }
 
   private hashToken(token: string): string {

@@ -29,6 +29,8 @@ import { CurrentUser } from './decorators/current-user.decorator';
 import { RequestUser } from './interfaces/authenticated-user.interface';
 import { GoogleProfile } from './strategies/google.strategy';
 import { CreatePatDto } from './dto/create-pat.dto';
+import { AddUserDto } from './dto/add-user.dto';
+import { AdminGuard } from '../common/guards/admin.guard';
 
 const REFRESH_TOKEN_COOKIE = 'refresh_token';
 const COOKIE_OPTIONS = {
@@ -215,5 +217,44 @@ export class AuthController {
     @Param('id') id: string,
   ): Promise<void> {
     await this.authService.revokePat(user.id, id);
+  }
+
+  // ── User Management (Admin only) ──
+
+  /**
+   * GET /auth/users
+   */
+  @Get('users')
+  @UseGuards(AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List all users (admin only)' })
+  async listUsers() {
+    return this.authService.listUsers();
+  }
+
+  /**
+   * POST /auth/users
+   */
+  @Post('users')
+  @UseGuards(AdminGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Add an allowed user by email (admin only)' })
+  async addUser(@Body() dto: AddUserDto) {
+    return this.authService.addAllowedUser(dto.email);
+  }
+
+  /**
+   * DELETE /auth/users/:id
+   */
+  @Delete('users/:id')
+  @UseGuards(AdminGuard)
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove a user (admin only)' })
+  async removeUser(
+    @CurrentUser() user: RequestUser,
+    @Param('id') id: string,
+  ): Promise<void> {
+    await this.authService.removeUser(user.id, id);
   }
 }

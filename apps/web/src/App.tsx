@@ -19,6 +19,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ArchivePage = lazy(() => import('./pages/ArchivePage'));
 const ShareTargetPage = lazy(() => import('./pages/ShareTargetPage'));
 const HelpPage = lazy(() => import('./pages/HelpPage'));
+const UsersPage = lazy(() => import('./pages/UsersPage'));
 
 function AppRoutes() {
   const { theme } = useThemeContext();
@@ -41,6 +42,7 @@ function AppRoutes() {
                 <Route path="/" element={<ClipboardPage />} />
                 <Route path="/archive" element={<ArchivePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                <Route path="/users" element={<UsersPage />} />
                 <Route path="/help" element={<HelpPage />} />
               </Route>
             </Route>

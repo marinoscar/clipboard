@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { createHash } from 'crypto';
@@ -35,8 +35,10 @@ describe('AuthService', () => {
     prisma = {
       user: {
         findUnique: jest.fn(),
+        findMany: jest.fn(),
         create: jest.fn(),
         update: jest.fn(),
+        delete: jest.fn(),
         count: jest.fn(),
       },
       refreshToken: {
@@ -92,33 +94,47 @@ describe('AuthService', () => {
       });
     });
 
-    it('should create new user if not found', async () => {
+    it('should link googleId when pre-registered user logs in by email', async () => {
+      const preRegistered = { ...mockUser, googleId: null };
       prisma.user.findUnique
         .mockResolvedValueOnce(null) // googleId lookup
-        .mockResolvedValueOnce(null); // email lookup
-      prisma.user.count.mockResolvedValue(1); // not first user
-      prisma.user.create.mockResolvedValue(mockUser);
+        .mockResolvedValueOnce(preRegistered); // email lookup
       prisma.user.update.mockResolvedValue(mockUser);
       prisma.refreshToken.create.mockResolvedValue({ id: 'token-1' });
 
       const result = await service.handleGoogleLogin(mockGoogleProfile);
 
       expect(result).toHaveProperty('accessToken');
-      expect(prisma.user.create).toHaveBeenCalledWith(
+      expect(prisma.user.update).toHaveBeenCalledWith(
         expect.objectContaining({
+          where: { id: preRegistered.id },
           data: expect.objectContaining({
-            email: 'test@example.com',
             googleId: 'google-123',
           }),
         }),
       );
     });
 
-    it('should make first user admin', async () => {
+    it('should reject unregistered email with ForbiddenException', async () => {
       prisma.user.findUnique
-        .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce(null);
-      prisma.user.count.mockResolvedValue(0); // first user
+        .mockResolvedValueOnce(null) // googleId lookup
+        .mockResolvedValueOnce(null); // email lookup
+
+      await expect(
+        service.handleGoogleLogin(mockGoogleProfile),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should auto-create initial admin from INITIAL_ADMIN_EMAIL', async () => {
+      configService.get.mockImplementation((key: string, def?: any) => {
+        if (key === 'initialAdminEmail') return 'test@example.com';
+        const c: Record<string, any> = { 'jwt.accessTtlMinutes': 15, 'jwt.refreshTtlDays': 14 };
+        return c[key] ?? def;
+      });
+
+      prisma.user.findUnique
+        .mockResolvedValueOnce(null) // googleId lookup
+        .mockResolvedValueOnce(null); // email lookup
       prisma.user.create.mockResolvedValue({ ...mockUser, isAdmin: true });
       prisma.user.update.mockResolvedValue({ ...mockUser, isAdmin: true });
       prisma.refreshToken.create.mockResolvedValue({ id: 'token-1' });
@@ -129,6 +145,7 @@ describe('AuthService', () => {
         expect.objectContaining({
           data: expect.objectContaining({
             isAdmin: true,
+            email: 'test@example.com',
           }),
         }),
       );
@@ -320,6 +337,76 @@ describe('AuthService', () => {
       prisma.user.findUnique.mockResolvedValue(null);
 
       await expect(service.getCurrentUser('non-existent')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
+
+  describe('listUsers', () => {
+    it('should return all users', async () => {
+      prisma.user.findMany.mockResolvedValue([mockUser]);
+      const result = await service.listUsers();
+      expect(result).toHaveLength(1);
+      expect(prisma.user.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({ orderBy: { createdAt: 'asc' } }),
+      );
+    });
+  });
+
+  describe('addAllowedUser', () => {
+    it('should create a placeholder user with no googleId', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.create.mockResolvedValue({
+        id: 'new-1',
+        email: 'new@example.com',
+        isActive: true,
+        isAdmin: false,
+        createdAt: new Date(),
+      });
+
+      const result = await service.addAllowedUser('New@Example.com');
+
+      expect(result.email).toBe('new@example.com');
+      expect(prisma.user.create).toHaveBeenCalledWith({
+        data: {
+          email: 'new@example.com',
+          isActive: true,
+          isAdmin: false,
+        },
+      });
+    });
+
+    it('should throw ConflictException if email already exists', async () => {
+      prisma.user.findUnique.mockResolvedValue(mockUser);
+
+      await expect(service.addAllowedUser('test@example.com')).rejects.toThrow(
+        ConflictException,
+      );
+    });
+  });
+
+  describe('removeUser', () => {
+    it('should delete the user', async () => {
+      prisma.user.findUnique.mockResolvedValue(mockUser);
+      prisma.user.delete.mockResolvedValue(mockUser);
+
+      await service.removeUser('admin-1', 'user-1');
+
+      expect(prisma.user.delete).toHaveBeenCalledWith({
+        where: { id: 'user-1' },
+      });
+    });
+
+    it('should throw BadRequestException when removing self', async () => {
+      await expect(service.removeUser('user-1', 'user-1')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw if user not found', async () => {
+      prisma.user.findUnique.mockResolvedValue(null);
+
+      await expect(service.removeUser('admin-1', 'non-existent')).rejects.toThrow(
         UnauthorizedException,
       );
     });

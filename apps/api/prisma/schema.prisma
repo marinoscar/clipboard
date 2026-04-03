@@ -12,7 +12,7 @@ model User {
   email           String   @unique
   displayName     String?  @map("display_name")
   profileImageUrl String?  @map("profile_image_url")
-  googleId        String   @unique @map("google_id")
+  googleId        String?  @unique @map("google_id")
   isActive        Boolean  @default(true) @map("is_active")
   isAdmin         Boolean  @default(false) @map("is_admin")
   createdAt       DateTime @default(now()) @map("created_at")

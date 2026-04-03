@@ -17,6 +17,7 @@ import {
   Brightness4 as DarkModeIcon,
   Brightness7 as LightModeIcon,
   HelpOutline as HelpIcon,
+  People as PeopleIcon,
 } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
@@ -72,6 +73,13 @@ export function UserMenu() {
           <ListItemIcon><ArchiveIcon fontSize="small" /></ListItemIcon>
           <ListItemText>Archive</ListItemText>
         </MenuItem>
+
+        {user.isAdmin && (
+          <MenuItem onClick={() => handleNavigate('/users')}>
+            <ListItemIcon><PeopleIcon fontSize="small" /></ListItemIcon>
+            <ListItemText>Users</ListItemText>
+          </MenuItem>
+        )}
 
         <MenuItem onClick={() => handleNavigate('/settings')}>
           <ListItemIcon><SettingsIcon fontSize="small" /></ListItemIcon>

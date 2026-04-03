@@ -347,6 +347,31 @@ export async function revokePersonalAccessToken(id: string): Promise<void> {
   return api.delete<void>(`/auth/tokens/${id}`);
 }
 
+// User management API (admin only)
+
+export interface ManagedUser {
+  id: string;
+  email: string;
+  displayName: string | null;
+  profileImageUrl: string | null;
+  isActive: boolean;
+  isAdmin: boolean;
+  googleId: string | null;
+  createdAt: string;
+}
+
+export async function listUsers(): Promise<ManagedUser[]> {
+  return api.get<ManagedUser[]>('/auth/users');
+}
+
+export async function addUser(email: string): Promise<ManagedUser> {
+  return api.post<ManagedUser>('/auth/users', { email });
+}
+
+export async function removeUser(id: string): Promise<void> {
+  return api.delete<void>(`/auth/users/${id}`);
+}
+
 // System settings API
 
 export async function getSystemSettings(): Promise<Record<string, unknown>> {
