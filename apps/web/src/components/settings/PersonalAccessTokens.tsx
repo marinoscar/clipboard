@@ -279,7 +279,7 @@ export function PersonalAccessTokens() {
             <TextField
               value={createdToken || ''}
               fullWidth
-              slotProps={{ input: { readOnly: true, sx: { fontFamily: 'monospace', fontSize: '0.85rem' } } }}
+              InputProps={{ readOnly: true, sx: { fontFamily: 'monospace', fontSize: '0.85rem' } }}
             />
             <Tooltip title={copied ? 'Copied!' : 'Copy'}>
               <IconButton onClick={handleCopy}>

@@ -6,12 +6,9 @@ import Paper from '@mui/material/Paper';
 import ContentPasteIcon from '@mui/icons-material/ContentPaste';
 import Inventory2Icon from '@mui/icons-material/Inventory2';
 import SettingsIcon from '@mui/icons-material/Settings';
-import { useAuth } from '../../contexts/AuthContext';
-
 export function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
 
   const pathToValue = (path: string): number => {
     if (path === '/archive') return 1;
