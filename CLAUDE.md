@@ -71,6 +71,7 @@ The project is built in 6 sequential phases. Each phase has a detailed spec in `
 3. **Security by Default**: All API endpoints require JWT or PAT authentication unless decorated with `@Public()`
 4. **API-First**: All business logic resides in the API layer
 5. **Simplified Auth**: No RBAC tables — just `isAdmin` boolean on User model (Google OAuth + Personal Access Tokens)
+6. **User Allowlist**: Only pre-registered emails can log in. Admin (INITIAL_ADMIN_EMAIL) manages users via `/users` page.
 
 ## MANDATORY: Testing Requirements
 
@@ -252,6 +253,9 @@ Key variables (see `infra/compose/.env.example` for full list):
 - `POST /api/auth/tokens` — Create personal access token (JWT or PAT)
 - `GET /api/auth/tokens` — List user's PATs (JWT or PAT)
 - `DELETE /api/auth/tokens/:id` — Revoke a PAT (JWT or PAT)
+- `GET /api/auth/users` — List all users (Admin only)
+- `POST /api/auth/users` — Add allowed user by email (Admin only)
+- `DELETE /api/auth/users/:id` — Remove user (Admin only)
 
 ### Clipboard
 - `POST /api/clipboard` — Create text item
@@ -294,6 +298,18 @@ Key variables (see `infra/compose/.env.example` for full list):
 - Personal Access Tokens (PATs) stored as SHA256 hash, prefixed with `clip_`
 - PAT auth handled in JwtAuthGuard — tokens starting with `clip_` bypass JWT validation
 - CLI stores PAT in `~/.config/clipcli/auth.json` with 0o600 permissions
+- User allowlist: only pre-registered emails can log in via Google OAuth; unknown emails are rejected
+- INITIAL_ADMIN_EMAIL is auto-created on first login (bootstrap); all other users must be added by admin
+- googleId is optional in User model — placeholder users exist before first Google login
+
+## Media Player
+
+- Custom HTML5 `<video>`/`<audio>` + MUI controls — zero external dependencies
+- Component: `apps/web/src/components/clipboard/VideoPlayer.tsx` (exports `MediaPlayer` and `VideoPlayer`)
+- Video mode: play/pause, seek, 10s tap-skip, playback speed, volume, fullscreen, keyboard shortcuts, auto-hide controls
+- Audio mode: compact player with spinning music icon, same controls minus fullscreen
+- Used in `FileItemView` (authenticated) and `PublicItemPage` (shared) for `video/*` and `audio/*` MIME types
+- Streams directly from S3 presigned URLs (1-hour expiry)
 
 ## Known Gotchas
 
