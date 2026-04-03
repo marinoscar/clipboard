@@ -45,16 +45,27 @@ That's it. The installer checks prerequisites, clones the repo to `~/.clipcli`, 
 ### Update
 
 ```bash
+# Option 1: Use the convenience command (created during install)
 clipcli-update
-```
 
-Or run the same curl command again — the installer is idempotent. It pulls the latest code and rebuilds.
+# Option 2: Run the same curl command again (it pulls instead of cloning)
+curl -fsSL https://raw.githubusercontent.com/marinoscar/clipboard/main/tools/clipcli/install.sh | bash
+
+# Option 3: Run the local install script directly
+~/.clipcli/tools/clipcli/install.sh
+```
 
 ### Uninstall
 
 ```bash
+# Option 1: Via curl
+curl -fsSL https://raw.githubusercontent.com/marinoscar/clipboard/main/tools/clipcli/install.sh | bash -s -- --uninstall
+
+# Option 2: Via the local install script
 ~/.clipcli/tools/clipcli/install.sh --uninstall
 ```
+
+This removes `clipcli` and `clipcli-update` from `/usr/local/bin/`. The repo at `~/.clipcli` is kept — delete it manually with `rm -rf ~/.clipcli` if desired.
 
 ### What the installer does
 
