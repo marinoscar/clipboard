@@ -32,7 +32,7 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export function VideoPlayer({ src, title }: VideoPlayerProps) {
+export function VideoPlayer({ src }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -224,8 +224,6 @@ export function VideoPlayer({ src, title }: VideoPlayerProps) {
     return () => window.removeEventListener('keydown', handleKey);
   }, [togglePlay, skip, toggleMute, toggleFullscreen, video]);
 
-  const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
-
   return (
     <Box
       ref={containerRef}
@@ -241,21 +239,24 @@ export function VideoPlayer({ src, title }: VideoPlayerProps) {
         width: '100%',
       }}
     >
-      {/* Video element */}
+      {/* Video element with click overlay */}
       <Box
-        component="video"
-        ref={videoRef}
-        src={src}
-        preload="metadata"
-        playsInline
         onClick={handleVideoClick}
-        sx={{
-          width: '100%',
-          display: 'block',
-          maxHeight: isFullscreen ? '100vh' : '70vh',
-          objectFit: 'contain',
-        }}
-      />
+        sx={{ position: 'relative', width: '100%', cursor: 'pointer' }}
+      >
+        <video
+          ref={videoRef}
+          src={src}
+          preload="metadata"
+          playsInline
+          style={{
+            width: '100%',
+            display: 'block',
+            maxHeight: isFullscreen ? '100vh' : '70vh',
+            objectFit: 'contain',
+          }}
+        />
+      </Box>
 
       {/* Buffering spinner */}
       {buffering && (
