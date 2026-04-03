@@ -15,10 +15,11 @@ import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import SpeedIcon from '@mui/icons-material/Speed';
 import Forward10Icon from '@mui/icons-material/Forward10';
 import Replay10Icon from '@mui/icons-material/Replay10';
+import MusicNoteIcon from '@mui/icons-material/MusicNote';
 
-interface VideoPlayerProps {
+interface MediaPlayerProps {
   src: string;
-  title?: string;
+  mode?: 'video' | 'audio';
 }
 
 const PLAYBACK_SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2];
@@ -32,10 +33,19 @@ function formatTime(seconds: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
-export function VideoPlayer({ src }: VideoPlayerProps) {
-  const videoRef = useRef<HTMLVideoElement>(null);
+/**
+ * Unified media player for video and audio files.
+ * - Video mode: full player with tap-to-skip, fullscreen, overlay controls
+ * - Audio mode: compact player with album art placeholder and inline controls
+ *
+ * Exported as both `MediaPlayer` (new name) and `VideoPlayer` (backward compat).
+ */
+export function MediaPlayer({ src, mode = 'video' }: MediaPlayerProps) {
+  const mediaRef = useRef<HTMLVideoElement | HTMLAudioElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isAudio = mode === 'audio';
 
   const [playing, setPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -48,114 +58,108 @@ export function VideoPlayer({ src }: VideoPlayerProps) {
   const [showControls, setShowControls] = useState(true);
   const [skipIndicator, setSkipIndicator] = useState<'fwd' | 'back' | null>(null);
 
-  // Speed menu
   const [speedAnchor, setSpeedAnchor] = useState<null | HTMLElement>(null);
 
-  const video = videoRef.current;
+  const media = mediaRef.current;
 
-  // Auto-hide controls after 3 seconds of inactivity
+  // Auto-hide controls (video only)
   const resetHideTimer = useCallback(() => {
+    if (isAudio) return;
     setShowControls(true);
     if (hideTimerRef.current) clearTimeout(hideTimerRef.current);
     hideTimerRef.current = setTimeout(() => {
-      if (videoRef.current && !videoRef.current.paused) {
+      if (mediaRef.current && !mediaRef.current.paused) {
         setShowControls(false);
       }
     }, 3000);
-  }, []);
+  }, [isAudio]);
 
-  // Video event handlers
+  // Media event handlers
   useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
+    const el = mediaRef.current;
+    if (!el) return;
 
     const onPlay = () => setPlaying(true);
     const onPause = () => { setPlaying(false); setShowControls(true); };
-    const onTimeUpdate = () => setCurrentTime(v.currentTime);
-    const onDurationChange = () => setDuration(v.duration);
+    const onTimeUpdate = () => setCurrentTime(el.currentTime);
+    const onDurationChange = () => setDuration(el.duration);
     const onWaiting = () => setBuffering(true);
     const onPlaying = () => setBuffering(false);
     const onCanPlay = () => setBuffering(false);
     const onVolumeChange = () => {
-      setVolume(v.volume);
-      setMuted(v.muted);
+      setVolume(el.volume);
+      setMuted(el.muted);
     };
 
-    v.addEventListener('play', onPlay);
-    v.addEventListener('pause', onPause);
-    v.addEventListener('timeupdate', onTimeUpdate);
-    v.addEventListener('durationchange', onDurationChange);
-    v.addEventListener('waiting', onWaiting);
-    v.addEventListener('playing', onPlaying);
-    v.addEventListener('canplay', onCanPlay);
-    v.addEventListener('volumechange', onVolumeChange);
+    el.addEventListener('play', onPlay);
+    el.addEventListener('pause', onPause);
+    el.addEventListener('timeupdate', onTimeUpdate);
+    el.addEventListener('durationchange', onDurationChange);
+    el.addEventListener('waiting', onWaiting);
+    el.addEventListener('playing', onPlaying);
+    el.addEventListener('canplay', onCanPlay);
+    el.addEventListener('volumechange', onVolumeChange);
 
     return () => {
-      v.removeEventListener('play', onPlay);
-      v.removeEventListener('pause', onPause);
-      v.removeEventListener('timeupdate', onTimeUpdate);
-      v.removeEventListener('durationchange', onDurationChange);
-      v.removeEventListener('waiting', onWaiting);
-      v.removeEventListener('playing', onPlaying);
-      v.removeEventListener('canplay', onCanPlay);
-      v.removeEventListener('volumechange', onVolumeChange);
+      el.removeEventListener('play', onPlay);
+      el.removeEventListener('pause', onPause);
+      el.removeEventListener('timeupdate', onTimeUpdate);
+      el.removeEventListener('durationchange', onDurationChange);
+      el.removeEventListener('waiting', onWaiting);
+      el.removeEventListener('playing', onPlaying);
+      el.removeEventListener('canplay', onCanPlay);
+      el.removeEventListener('volumechange', onVolumeChange);
     };
   }, []);
 
   // Fullscreen change listener
   useEffect(() => {
-    const onFsChange = () => {
-      setIsFullscreen(!!document.fullscreenElement);
-    };
+    const onFsChange = () => setIsFullscreen(!!document.fullscreenElement);
     document.addEventListener('fullscreenchange', onFsChange);
     return () => document.removeEventListener('fullscreenchange', onFsChange);
   }, []);
 
   const togglePlay = useCallback(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    if (v.paused) {
-      v.play();
-    } else {
-      v.pause();
-    }
+    const el = mediaRef.current;
+    if (!el) return;
+    if (el.paused) el.play(); else el.pause();
     resetHideTimer();
   }, [resetHideTimer]);
 
   const skip = useCallback((seconds: number) => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.currentTime = Math.max(0, Math.min(v.duration, v.currentTime + seconds));
+    const el = mediaRef.current;
+    if (!el) return;
+    el.currentTime = Math.max(0, Math.min(el.duration, el.currentTime + seconds));
     setSkipIndicator(seconds > 0 ? 'fwd' : 'back');
     setTimeout(() => setSkipIndicator(null), 600);
     resetHideTimer();
   }, [resetHideTimer]);
 
   const handleSeek = useCallback((_: Event | React.SyntheticEvent, value: number | number[]) => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.currentTime = value as number;
+    const el = mediaRef.current;
+    if (!el) return;
+    el.currentTime = value as number;
     resetHideTimer();
   }, [resetHideTimer]);
 
   const handleVolumeChange = useCallback((_: Event | React.SyntheticEvent, value: number | number[]) => {
-    const v = videoRef.current;
-    if (!v) return;
+    const el = mediaRef.current;
+    if (!el) return;
     const vol = value as number;
-    v.volume = vol;
-    v.muted = vol === 0;
+    el.volume = vol;
+    el.muted = vol === 0;
   }, []);
 
   const toggleMute = useCallback(() => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.muted = !v.muted;
+    const el = mediaRef.current;
+    if (!el) return;
+    el.muted = !el.muted;
   }, []);
 
   const setSpeed = useCallback((rate: number) => {
-    const v = videoRef.current;
-    if (!v) return;
-    v.playbackRate = rate;
+    const el = mediaRef.current;
+    if (!el) return;
+    el.playbackRate = rate;
     setPlaybackRate(rate);
     setSpeedAnchor(null);
   }, []);
@@ -163,27 +167,17 @@ export function VideoPlayer({ src }: VideoPlayerProps) {
   const toggleFullscreen = useCallback(() => {
     const container = containerRef.current;
     if (!container) return;
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      container.requestFullscreen();
-    }
+    if (document.fullscreenElement) document.exitFullscreen();
+    else container.requestFullscreen();
   }, []);
 
-  // Handle tap on left/right side for 10s skip
   const handleVideoClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const width = rect.width;
-    const zone = x / width;
-
-    if (zone < 0.3) {
-      skip(-10);
-    } else if (zone > 0.7) {
-      skip(10);
-    } else {
-      togglePlay();
-    }
+    const zone = x / rect.width;
+    if (zone < 0.3) skip(-10);
+    else if (zone > 0.7) skip(10);
+    else togglePlay();
   }, [skip, togglePlay]);
 
   // Keyboard shortcuts
@@ -191,39 +185,167 @@ export function VideoPlayer({ src }: VideoPlayerProps) {
     const handleKey = (e: KeyboardEvent) => {
       if (!containerRef.current?.contains(document.activeElement) && document.activeElement !== document.body) return;
       switch (e.key) {
-        case ' ':
-        case 'k':
-          e.preventDefault();
-          togglePlay();
-          break;
-        case 'ArrowLeft':
-          e.preventDefault();
-          skip(-10);
-          break;
-        case 'ArrowRight':
-          e.preventDefault();
-          skip(10);
-          break;
-        case 'ArrowUp':
-          e.preventDefault();
-          if (video) video.volume = Math.min(1, video.volume + 0.1);
-          break;
-        case 'ArrowDown':
-          e.preventDefault();
-          if (video) video.volume = Math.max(0, video.volume - 0.1);
-          break;
-        case 'm':
-          toggleMute();
-          break;
-        case 'f':
-          toggleFullscreen();
-          break;
+        case ' ': case 'k': e.preventDefault(); togglePlay(); break;
+        case 'ArrowLeft': e.preventDefault(); skip(-10); break;
+        case 'ArrowRight': e.preventDefault(); skip(10); break;
+        case 'ArrowUp': e.preventDefault(); if (media) media.volume = Math.min(1, media.volume + 0.1); break;
+        case 'ArrowDown': e.preventDefault(); if (media) media.volume = Math.max(0, media.volume - 0.1); break;
+        case 'm': toggleMute(); break;
+        case 'f': if (!isAudio) toggleFullscreen(); break;
       }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [togglePlay, skip, toggleMute, toggleFullscreen, video]);
+  }, [togglePlay, skip, toggleMute, toggleFullscreen, media, isAudio]);
 
+  // ── Control bar (shared between video & audio) ──
+  const controlBar = (
+    <Box sx={{
+      display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 },
+      mt: isAudio ? 0 : -0.5,
+    }}>
+      <IconButton onClick={togglePlay} size="small" sx={{ color: 'white' }}>
+        {playing ? <PauseIcon /> : <PlayArrowIcon />}
+      </IconButton>
+
+      <IconButton onClick={() => skip(-10)} size="small" sx={{ color: 'white' }}>
+        <Replay10Icon fontSize="small" />
+      </IconButton>
+
+      <IconButton onClick={() => skip(10)} size="small" sx={{ color: 'white' }}>
+        <Forward10Icon fontSize="small" />
+      </IconButton>
+
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+        <IconButton onClick={toggleMute} size="small" sx={{ color: 'white' }}>
+          {muted || volume === 0 ? <VolumeOffIcon fontSize="small" /> : <VolumeUpIcon fontSize="small" />}
+        </IconButton>
+        <Slider
+          size="small"
+          value={muted ? 0 : volume}
+          min={0} max={1} step={0.05}
+          onChange={handleVolumeChange}
+          sx={{
+            width: { xs: 50, sm: 80 }, color: 'white',
+            '& .MuiSlider-thumb': { width: 10, height: 10 },
+            '& .MuiSlider-rail': { bgcolor: 'rgba(255,255,255,0.3)' },
+          }}
+        />
+      </Box>
+
+      <Typography variant="caption" sx={{ color: 'white', mx: 1, whiteSpace: 'nowrap', userSelect: 'none' }}>
+        {formatTime(currentTime)} / {formatTime(duration)}
+      </Typography>
+
+      <Box sx={{ flex: 1 }} />
+
+      <IconButton
+        onClick={(e) => setSpeedAnchor(e.currentTarget)}
+        size="small"
+        sx={{ color: 'white' }}
+      >
+        {playbackRate === 1 ? (
+          <SpeedIcon fontSize="small" />
+        ) : (
+          <Typography variant="caption" sx={{ fontWeight: 700, color: 'white' }}>
+            {playbackRate}x
+          </Typography>
+        )}
+      </IconButton>
+
+      {!isAudio && (
+        <IconButton onClick={toggleFullscreen} size="small" sx={{ color: 'white' }}>
+          {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
+        </IconButton>
+      )}
+    </Box>
+  );
+
+  const seekBar = (
+    <Slider
+      size="small"
+      value={currentTime}
+      min={0} max={duration || 1}
+      onChange={handleSeek}
+      sx={{
+        color: 'primary.main', height: 4, p: '4px 0',
+        '& .MuiSlider-thumb': {
+          width: 12, height: 12,
+          transition: 'width 0.15s, height 0.15s',
+          '&:hover, &.Mui-focusVisible': { width: 16, height: 16 },
+        },
+        '& .MuiSlider-rail': { bgcolor: 'rgba(255,255,255,0.3)' },
+      }}
+    />
+  );
+
+  const speedMenu = (
+    <Menu
+      anchorEl={speedAnchor}
+      open={Boolean(speedAnchor)}
+      onClose={() => setSpeedAnchor(null)}
+      anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+      transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+    >
+      {PLAYBACK_SPEEDS.map((rate) => (
+        <MenuItem key={rate} selected={playbackRate === rate} onClick={() => setSpeed(rate)} dense>
+          {rate === 1 ? 'Normal' : `${rate}x`}
+        </MenuItem>
+      ))}
+    </Menu>
+  );
+
+  // ── Audio mode ──
+  if (isAudio) {
+    return (
+      <Box
+        ref={containerRef}
+        sx={{
+          bgcolor: '#1a1a2e',
+          borderRadius: 2,
+          overflow: 'hidden',
+          width: '100%',
+        }}
+      >
+        {/* Hidden audio element */}
+        <audio ref={mediaRef as React.RefObject<HTMLAudioElement>} src={src} preload="metadata" />
+
+        {/* Album art area */}
+        <Box
+          onClick={togglePlay}
+          sx={{
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            py: 4, cursor: 'pointer', position: 'relative',
+          }}
+        >
+          <Box sx={{
+            width: 80, height: 80, borderRadius: '50%',
+            bgcolor: 'rgba(255,255,255,0.1)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            transition: 'transform 0.3s ease',
+            animation: playing ? 'spin 4s linear infinite' : 'none',
+            '@keyframes spin': { from: { transform: 'rotate(0deg)' }, to: { transform: 'rotate(360deg)' } },
+          }}>
+            <MusicNoteIcon sx={{ fontSize: 36, color: 'primary.main' }} />
+          </Box>
+
+          {buffering && (
+            <CircularProgress size={32} sx={{ color: 'white', position: 'absolute' }} />
+          )}
+        </Box>
+
+        {/* Controls */}
+        <Box sx={{ px: 2, pb: 1.5 }}>
+          {seekBar}
+          {controlBar}
+        </Box>
+
+        {speedMenu}
+      </Box>
+    );
+  }
+
+  // ── Video mode ──
   return (
     <Box
       ref={containerRef}
@@ -239,26 +361,23 @@ export function VideoPlayer({ src }: VideoPlayerProps) {
         width: '100%',
       }}
     >
-      {/* Video element with click overlay */}
       <Box
         onClick={handleVideoClick}
         sx={{ position: 'relative', width: '100%', cursor: 'pointer' }}
       >
         <video
-          ref={videoRef}
+          ref={mediaRef as React.RefObject<HTMLVideoElement>}
           src={src}
           preload="metadata"
           playsInline
           style={{
-            width: '100%',
-            display: 'block',
+            width: '100%', display: 'block',
             maxHeight: isFullscreen ? '100vh' : '70vh',
             objectFit: 'contain',
           }}
         />
       </Box>
 
-      {/* Buffering spinner */}
       {buffering && (
         <Box sx={{
           position: 'absolute', top: '50%', left: '50%',
@@ -268,14 +387,12 @@ export function VideoPlayer({ src }: VideoPlayerProps) {
         </Box>
       )}
 
-      {/* Skip indicators */}
       {skipIndicator && (
         <Box sx={{
           position: 'absolute', top: '50%',
           left: skipIndicator === 'back' ? '15%' : undefined,
           right: skipIndicator === 'fwd' ? '15%' : undefined,
-          transform: 'translateY(-50%)',
-          pointerEvents: 'none',
+          transform: 'translateY(-50%)', pointerEvents: 'none',
           animation: 'fadeInOut 0.6s ease',
           '@keyframes fadeInOut': {
             '0%': { opacity: 0, transform: 'translateY(-50%) scale(0.8)' },
@@ -291,7 +408,6 @@ export function VideoPlayer({ src }: VideoPlayerProps) {
         </Box>
       )}
 
-      {/* Big play button when paused */}
       {!playing && !buffering && (
         <Box
           onClick={togglePlay}
@@ -301,8 +417,7 @@ export function VideoPlayer({ src }: VideoPlayerProps) {
             bgcolor: 'rgba(0,0,0,0.6)', borderRadius: '50%',
             width: 64, height: 64,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer',
-            transition: 'transform 0.15s ease',
+            cursor: 'pointer', transition: 'transform 0.15s ease',
             '&:hover': { transform: 'translate(-50%, -50%) scale(1.1)', bgcolor: 'rgba(0,0,0,0.75)' },
           }}
         >
@@ -310,7 +425,6 @@ export function VideoPlayer({ src }: VideoPlayerProps) {
         </Box>
       )}
 
-      {/* Controls overlay */}
       <Box sx={{
         position: 'absolute', bottom: 0, left: 0, right: 0,
         background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
@@ -319,116 +433,14 @@ export function VideoPlayer({ src }: VideoPlayerProps) {
         transition: 'opacity 0.3s ease',
         pointerEvents: showControls ? 'auto' : 'none',
       }}>
-        {/* Progress bar */}
-        <Slider
-          size="small"
-          value={currentTime}
-          min={0}
-          max={duration || 1}
-          onChange={handleSeek}
-          sx={{
-            color: 'primary.main',
-            height: 4,
-            p: '4px 0',
-            '& .MuiSlider-thumb': {
-              width: 12, height: 12,
-              transition: 'width 0.15s, height 0.15s',
-              '&:hover, &.Mui-focusVisible': { width: 16, height: 16 },
-            },
-            '& .MuiSlider-rail': { bgcolor: 'rgba(255,255,255,0.3)' },
-          }}
-        />
-
-        {/* Control buttons row */}
-        <Box sx={{
-          display: 'flex', alignItems: 'center', gap: { xs: 0.5, sm: 1 },
-          mt: -0.5,
-        }}>
-          {/* Play/Pause */}
-          <IconButton onClick={togglePlay} size="small" sx={{ color: 'white' }}>
-            {playing ? <PauseIcon /> : <PlayArrowIcon />}
-          </IconButton>
-
-          {/* Skip back 10s */}
-          <IconButton onClick={() => skip(-10)} size="small" sx={{ color: 'white' }}>
-            <Replay10Icon fontSize="small" />
-          </IconButton>
-
-          {/* Skip forward 10s */}
-          <IconButton onClick={() => skip(10)} size="small" sx={{ color: 'white' }}>
-            <Forward10Icon fontSize="small" />
-          </IconButton>
-
-          {/* Volume */}
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-            <IconButton onClick={toggleMute} size="small" sx={{ color: 'white' }}>
-              {muted || volume === 0 ? <VolumeOffIcon fontSize="small" /> : <VolumeUpIcon fontSize="small" />}
-            </IconButton>
-            <Slider
-              size="small"
-              value={muted ? 0 : volume}
-              min={0}
-              max={1}
-              step={0.05}
-              onChange={handleVolumeChange}
-              sx={{
-                width: { xs: 50, sm: 80 },
-                color: 'white',
-                '& .MuiSlider-thumb': { width: 10, height: 10 },
-                '& .MuiSlider-rail': { bgcolor: 'rgba(255,255,255,0.3)' },
-              }}
-            />
-          </Box>
-
-          {/* Time display */}
-          <Typography variant="caption" sx={{ color: 'white', mx: 1, whiteSpace: 'nowrap', userSelect: 'none' }}>
-            {formatTime(currentTime)} / {formatTime(duration)}
-          </Typography>
-
-          {/* Spacer */}
-          <Box sx={{ flex: 1 }} />
-
-          {/* Playback speed */}
-          <IconButton
-            onClick={(e) => setSpeedAnchor(e.currentTarget)}
-            size="small"
-            sx={{ color: 'white', fontSize: '0.75rem', position: 'relative' }}
-          >
-            {playbackRate === 1 ? (
-              <SpeedIcon fontSize="small" />
-            ) : (
-              <Typography variant="caption" sx={{ fontWeight: 700, color: 'white' }}>
-                {playbackRate}x
-              </Typography>
-            )}
-          </IconButton>
-
-          {/* Fullscreen */}
-          <IconButton onClick={toggleFullscreen} size="small" sx={{ color: 'white' }}>
-            {isFullscreen ? <FullscreenExitIcon /> : <FullscreenIcon />}
-          </IconButton>
-        </Box>
+        {seekBar}
+        {controlBar}
       </Box>
 
-      {/* Speed menu */}
-      <Menu
-        anchorEl={speedAnchor}
-        open={Boolean(speedAnchor)}
-        onClose={() => setSpeedAnchor(null)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
-      >
-        {PLAYBACK_SPEEDS.map((rate) => (
-          <MenuItem
-            key={rate}
-            selected={playbackRate === rate}
-            onClick={() => setSpeed(rate)}
-            dense
-          >
-            {rate === 1 ? 'Normal' : `${rate}x`}
-          </MenuItem>
-        ))}
-      </Menu>
+      {speedMenu}
     </Box>
   );
 }
+
+// Backward-compatible export
+export const VideoPlayer = MediaPlayer;

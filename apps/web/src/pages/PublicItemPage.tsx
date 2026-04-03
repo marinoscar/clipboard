@@ -14,7 +14,7 @@ import ContentCopy from '@mui/icons-material/ContentCopy';
 import Download from '@mui/icons-material/Download';
 import InsertDriveFile from '@mui/icons-material/InsertDriveFile';
 import { LoadingSpinner } from '../components/common/LoadingSpinner';
-import { VideoPlayer } from '../components/clipboard/VideoPlayer';
+import { MediaPlayer } from '../components/clipboard/VideoPlayer';
 import { getPublicItem, getPublicDownloadUrl } from '../services/api';
 import type { ClipboardItem } from '../types';
 
@@ -173,7 +173,7 @@ function VideoContent({ item, shareToken }: { item: ClipboardItem; shareToken: s
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
       {downloadUrl ? (
-        <VideoPlayer src={downloadUrl} title={item.fileName || undefined} />
+        <MediaPlayer src={downloadUrl} mode="video" />
       ) : (
         <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
           <CircularProgress />
@@ -182,6 +182,56 @@ function VideoContent({ item, shareToken }: { item: ClipboardItem; shareToken: s
       <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, alignItems: 'center' }}>
         <Typography variant="body2" color="text.secondary">
           {item.fileName || 'Video'}
+          {item.fileSize != null ? ` · ${formatFileSize(item.fileSize)}` : ''}
+        </Typography>
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<Download />}
+          onClick={handleDownload}
+          disabled={isDownloading}
+        >
+          Download
+        </Button>
+      </Box>
+    </Box>
+  );
+}
+
+function AudioContent({ item, shareToken }: { item: ClipboardItem; shareToken: string }) {
+  const [downloadUrl, setDownloadUrl] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  useEffect(() => {
+    getPublicDownloadUrl(shareToken)
+      .then(({ url }) => setDownloadUrl(url))
+      .catch(() => {});
+  }, [shareToken]);
+
+  const handleDownload = async () => {
+    setIsDownloading(true);
+    try {
+      const { url } = await getPublicDownloadUrl(shareToken);
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } catch {
+      // silently fail
+    } finally {
+      setIsDownloading(false);
+    }
+  };
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+      {downloadUrl ? (
+        <MediaPlayer src={downloadUrl} mode="audio" />
+      ) : (
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+          <CircularProgress />
+        </Box>
+      )}
+      <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, alignItems: 'center' }}>
+        <Typography variant="body2" color="text.secondary">
+          {item.fileName || 'Audio'}
           {item.fileSize != null ? ` · ${formatFileSize(item.fileSize)}` : ''}
         </Typography>
         <Button
@@ -286,7 +336,10 @@ export default function PublicItemPage() {
               {item.type === 'media' && item.mimeType?.startsWith('video/') && shareToken && (
                 <VideoContent item={item} shareToken={shareToken} />
               )}
-              {((item.type === 'file') || (item.type === 'media' && !item.mimeType?.startsWith('video/'))) && shareToken && (
+              {item.type === 'media' && item.mimeType?.startsWith('audio/') && shareToken && (
+                <AudioContent item={item} shareToken={shareToken} />
+              )}
+              {((item.type === 'file') || (item.type === 'media' && !item.mimeType?.startsWith('video/') && !item.mimeType?.startsWith('audio/'))) && shareToken && (
                 <FileContent item={item} shareToken={shareToken} />
               )}
             </Paper>

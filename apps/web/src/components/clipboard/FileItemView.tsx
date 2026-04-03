@@ -14,7 +14,7 @@ import Download from '@mui/icons-material/Download';
 import InsertDriveFile from '@mui/icons-material/InsertDriveFile';
 import { ClipboardItem } from '../../types';
 import { getDownloadUrl } from '../../services/api';
-import { VideoPlayer } from './VideoPlayer';
+import { MediaPlayer } from './VideoPlayer';
 
 interface FileItemViewProps {
   item: ClipboardItem;
@@ -36,6 +36,7 @@ export function FileItemView({ item, open, onClose }: FileItemViewProps) {
 
   const isImage = item.type === 'image' || item.mimeType?.startsWith('image/');
   const isVideo = item.mimeType?.startsWith('video/');
+  const isAudio = item.mimeType?.startsWith('audio/');
 
   useEffect(() => {
     if (!open) return;
@@ -151,7 +152,23 @@ export function FileItemView({ item, open, onClose }: FileItemViewProps) {
             ) : urlError ? (
               <Typography color="error" variant="body2">{urlError}</Typography>
             ) : downloadUrl ? (
-              <VideoPlayer src={downloadUrl} title={item.fileName || undefined} />
+              <MediaPlayer src={downloadUrl} mode="video" />
+            ) : null}
+          </>
+        )}
+
+        {/* Audio player */}
+        {isAudio && (
+          <>
+            <Divider sx={{ my: 2 }} />
+            {isLoadingUrl ? (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            ) : urlError ? (
+              <Typography color="error" variant="body2">{urlError}</Typography>
+            ) : downloadUrl ? (
+              <MediaPlayer src={downloadUrl} mode="audio" />
             ) : null}
           </>
         )}
