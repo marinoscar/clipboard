@@ -32,74 +32,53 @@ clipcli communicates with the Clipboard API using Personal Access Tokens (PATs):
 
 ## Installation
 
-Requires **Node.js >= 18** and **git**.
+Requires **git** and **Node.js >= 18**.
 
-### One-liner install
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/marinoscar/clipboard/main/tools/clipcli/setup.sh | bash
-```
-
-This clones the repo to `~/clipboard`, builds the CLI, and symlinks `clipcli` to `/usr/local/bin/`.
-
-### Update to latest version
+### Install
 
 ```bash
-# Option 1: Run the same one-liner again (it pulls if already cloned)
-curl -fsSL https://raw.githubusercontent.com/marinoscar/clipboard/main/tools/clipcli/setup.sh | bash
-
-# Option 2: Use the --update flag on the local install script
-~/clipboard/tools/clipcli/install.sh --update
-
-# Option 3: Manual pull + reinstall
-cd ~/clipboard && git pull && tools/clipcli/install.sh
+curl -fsSL https://raw.githubusercontent.com/marinoscar/clipboard/main/tools/clipcli/install.sh | bash
 ```
+
+That's it. The installer checks prerequisites, clones the repo to `~/.clipcli`, builds the CLI, and creates a global `clipcli` command.
+
+### Update
+
+```bash
+clipcli-update
+```
+
+Or run the same curl command again — the installer is idempotent. It pulls the latest code and rebuilds.
 
 ### Uninstall
 
 ```bash
-~/clipboard/tools/clipcli/install.sh --uninstall
+~/.clipcli/tools/clipcli/install.sh --uninstall
 ```
-
-### install.sh options
-
-If you already have the repo cloned, you can use `install.sh` directly:
-
-```bash
-/path/to/clipboard/tools/clipcli/install.sh              # Install or reinstall
-/path/to/clipboard/tools/clipcli/install.sh --update      # Pull latest + reinstall
-/path/to/clipboard/tools/clipcli/install.sh --uninstall   # Remove clipcli
-```
-
-| Flag | Description |
-|------|-------------|
-| *(none)* | Install or reinstall from current code |
-| `--update` | Pull latest code from `origin/main`, then reinstall |
-| `--uninstall` | Remove the `clipcli` symlink from `/usr/local/bin` |
 
 ### What the installer does
 
-1. Checks prerequisites (Node.js >= 18, npm)
-2. Clones the repo (or pulls if already cloned)
+1. Checks prerequisites (git, Node.js >= 18, npm)
+2. Clones the repo to `~/.clipcli` (or pulls latest if already cloned)
 3. Installs npm dependencies
 4. Builds TypeScript
-5. Creates a symlink at `/usr/local/bin/clipcli` -> `tools/clipcli/bin/clipcli.js`
-6. Verifies the installation
+5. Symlinks `clipcli` to `/usr/local/bin/clipcli`
+6. Creates a `clipcli-update` convenience command
+7. Verifies the installation
 
-After install:
+### Environment variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `CLIPCLI_INSTALL_DIR` | Override the installation directory | `~/.clipcli` |
+
+### Manual installation
 
 ```bash
-clipcli --version
-# 2026.4.1
-```
-
-### Manual installation (without scripts)
-
-```bash
-git clone https://github.com/marinoscar/clipboard.git
-cd clipboard/tools/clipcli
+git clone https://github.com/marinoscar/clipboard.git ~/.clipcli
+cd ~/.clipcli/tools/clipcli
 npm install && npm run build
-node bin/clipcli.js --help
+sudo ln -sf "$(pwd)/bin/clipcli.js" /usr/local/bin/clipcli
 ```
 
 ---
