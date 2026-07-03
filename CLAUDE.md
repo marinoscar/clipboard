@@ -320,3 +320,16 @@ Key variables (see `infra/compose/.env.example` for full list):
 - No Node.js on the host — all commands run via Docker
 - Nginx config is split: `nginx.conf` (prod, web on port 80) and `nginx.dev.conf` (dev, web on port 5173) — dev.compose.yml mounts the dev variant
 - Web `tsconfig.json` excludes test files (`*.test.ts/tsx`, `*.spec.ts/tsx`, `__tests__/`) to prevent build failures
+
+## Specialized Subagents
+
+This repo defines subagents in `.claude/agents/` — delegate work to the matching agent:
+
+| Agent | Use For |
+|-------|---------|
+| `backend-dev` | Backend code: endpoints, services, guards, auth |
+| `frontend-dev` | Frontend code: components, pages, theming |
+| `database-dev` | Schema changes, migrations, seeds, queries |
+| `testing-dev` | Unit/integration tests, typecheck |
+| `docs-dev` | Documentation updates |
+| `ops-dev` | Routine operations (Haiku): rebuilding/restarting containers, running migrations, running typecheck. IMPORTANT: `ops-dev` must NEVER perform state-changing git operations (pull, merge, push, commit, worktree management, branch operations) — those are always handled by the main agent directly, and `ops-dev` is instructed to refuse them |
