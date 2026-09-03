@@ -212,4 +212,23 @@ describe('useClipboardPaste', () => {
     expect(mockedCreateTextItem).not.toHaveBeenCalled();
     expect(mockedUploadFile).not.toHaveBeenCalled();
   });
+
+  it('on file paste: delegates to onFile when provided and skips uploadFile', async () => {
+    const file = new File(['data'], 'big.mp4', { type: 'video/mp4' });
+    const onFile = vi.fn().mockResolvedValue(undefined);
+    const onItemCreated = vi.fn();
+
+    renderHook(() => useClipboardPaste(onItemCreated, onFile));
+
+    const event = makePasteEvent({ files: [file] });
+
+    await act(async () => {
+      document.dispatchEvent(event);
+      await Promise.resolve();
+    });
+
+    expect(onFile).toHaveBeenCalledWith(file);
+    expect(mockedUploadFile).not.toHaveBeenCalled();
+    expect(onItemCreated).not.toHaveBeenCalled();
+  });
 });

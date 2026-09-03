@@ -6,7 +6,9 @@ import CircularProgress from '@mui/material/CircularProgress';
 import Alert from '@mui/material/Alert';
 import Container from '@mui/material/Container';
 import { useAuth } from '../contexts/AuthContext';
+import LinearProgress from '@mui/material/LinearProgress';
 import { createTextItem, uploadFile } from '../services/api';
+import { useMultipartUpload } from '../hooks/useMultipartUpload';
 import { getPendingShare, deletePendingShare, cleanupStaleShares } from '../services/shareStorage';
 
 type Status = 'loading' | 'needs-login' | 'processing' | 'success' | 'error' | 'no-data';
@@ -17,6 +19,7 @@ export default function ShareTargetPage() {
   const [status, setStatus] = useState<Status>('loading');
   const [errorMessage, setErrorMessage] = useState('');
   const processedRef = useRef(false);
+  const { startUpload, isLargeFile, progress } = useMultipartUpload();
 
   useEffect(() => {
     if (authLoading) return; // Wait for auth to resolve
@@ -48,7 +51,12 @@ export default function ShareTargetPage() {
 
       try {
         if (pending.file) {
-          await uploadFile(pending.file);
+          // Large files go direct-to-S3 via multipart; the simple endpoint is size-capped.
+          if (isLargeFile(pending.file)) {
+            await startUpload(pending.file);
+          } else {
+            await uploadFile(pending.file);
+          }
         } else if (pending.text) {
           await createTextItem(pending.text);
         } else {
@@ -65,7 +73,7 @@ export default function ShareTargetPage() {
     };
 
     process();
-  }, [authLoading, user, navigate]);
+  }, [authLoading, user, navigate, isLargeFile, startUpload]);
 
   return (
     <Container maxWidth="sm">
@@ -85,6 +93,14 @@ export default function ShareTargetPage() {
             <Typography color="text.secondary">
               {status === 'needs-login' ? 'Redirecting to login...' : 'Saving shared content...'}
             </Typography>
+            {status === 'processing' && progress > 0 && (
+              <Box sx={{ width: '100%' }}>
+                <LinearProgress variant="determinate" value={progress} />
+                <Typography variant="caption" color="text.secondary">
+                  {progress}%
+                </Typography>
+              </Box>
+            )}
           </>
         )}
         {status === 'success' && (

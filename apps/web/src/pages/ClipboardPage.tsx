@@ -119,7 +119,7 @@ export default function ClipboardPage() {
 
   const { isDragOver } = usePageDrop({ onFilesDropped: handleFilesDropped });
 
-  useClipboardPaste(handleItemCreated);
+  useClipboardPaste(handleItemCreated, handleFileForUpload);
 
   const handleArchive = useCallback(
     async (id: string) => {

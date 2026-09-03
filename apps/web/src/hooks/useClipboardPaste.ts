@@ -2,7 +2,18 @@ import { useEffect, useCallback } from 'react';
 import { createTextItem, uploadFile } from '../services/api';
 import { ClipboardItem } from '../types';
 
-export function useClipboardPaste(onItemCreated: (item: ClipboardItem) => void) {
+/**
+ * Handles Ctrl+V anywhere on the page.
+ *
+ * Pasted files are handed to `onFile` when provided so the caller can route
+ * large files through the multipart (direct-to-S3) upload instead of the
+ * size-capped simple upload endpoint. Without `onFile` the hook falls back to
+ * the simple upload.
+ */
+export function useClipboardPaste(
+  onItemCreated: (item: ClipboardItem) => void,
+  onFile?: (file: File) => void | Promise<void>,
+) {
   const handlePaste = useCallback(
     async (e: ClipboardEvent) => {
       // Don't intercept paste in input/textarea elements
@@ -24,8 +35,12 @@ export function useClipboardPaste(onItemCreated: (item: ClipboardItem) => void) 
           e.preventDefault();
           const file = item.getAsFile();
           if (file) {
-            const result = await uploadFile(file);
-            onItemCreated(result);
+            if (onFile) {
+              await onFile(file);
+            } else {
+              const result = await uploadFile(file);
+              onItemCreated(result);
+            }
           }
           return;
         }
@@ -39,7 +54,7 @@ export function useClipboardPaste(onItemCreated: (item: ClipboardItem) => void) 
         onItemCreated(result);
       }
     },
-    [onItemCreated],
+    [onItemCreated, onFile],
   );
 
   useEffect(() => {

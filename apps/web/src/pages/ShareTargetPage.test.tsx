@@ -22,6 +22,10 @@ vi.mock('../contexts/AuthContext', () => ({
   useAuth: vi.fn(),
 }));
 
+vi.mock('../hooks/useMultipartUpload', () => ({
+  useMultipartUpload: vi.fn(),
+}));
+
 vi.mock('../services/shareStorage', () => ({
   getPendingShare: vi.fn(),
   deletePendingShare: vi.fn(),
@@ -32,6 +36,7 @@ import { useNavigate } from 'react-router-dom';
 import { createTextItem, uploadFile } from '../services/api';
 import { useAuth } from '../contexts/AuthContext';
 import { getPendingShare, deletePendingShare, cleanupStaleShares } from '../services/shareStorage';
+import { useMultipartUpload } from '../hooks/useMultipartUpload';
 
 const mockedUseNavigate = vi.mocked(useNavigate);
 const mockedCreateTextItem = vi.mocked(createTextItem);
@@ -40,6 +45,17 @@ const mockedUseAuth = vi.mocked(useAuth);
 const mockedGetPendingShare = vi.mocked(getPendingShare);
 const mockedDeletePendingShare = vi.mocked(deletePendingShare);
 const mockedCleanupStaleShares = vi.mocked(cleanupStaleShares);
+const mockedUseMultipartUpload = vi.mocked(useMultipartUpload);
+
+const MULTIPART_THRESHOLD = 10 * 1024 * 1024; // mirrors useMultipartUpload
+
+const mockedStartUpload = vi.fn();
+
+function makeFileOfSize(name: string, type: string, size: number): File {
+  const file = new File(['x'], name, { type });
+  Object.defineProperty(file, 'size', { value: size });
+  return file;
+}
 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <MemoryRouter>{children}</MemoryRouter>
@@ -50,6 +66,16 @@ beforeEach(() => {
   mockedUseNavigate.mockReturnValue(vi.fn());
   mockedCleanupStaleShares.mockResolvedValue(undefined);
   mockedDeletePendingShare.mockResolvedValue(undefined);
+  mockedStartUpload.mockResolvedValue({ id: 'multipart-item' });
+  mockedUseMultipartUpload.mockReturnValue({
+    isUploading: false,
+    progress: 0,
+    error: null,
+    currentFile: null,
+    startUpload: mockedStartUpload,
+    abort: vi.fn(),
+    isLargeFile: (file: File) => file.size > MULTIPART_THRESHOLD,
+  });
 });
 
 describe('ShareTargetPage', () => {
@@ -128,6 +154,38 @@ describe('ShareTargetPage', () => {
     await waitFor(() => {
       expect(mockedUploadFile).toHaveBeenCalledWith(file);
       expect(mockedDeletePendingShare).toHaveBeenCalledWith(2);
+    });
+  });
+
+  it('routes a large shared file through the multipart upload, not the simple endpoint', async () => {
+    const file = makeFileOfSize('movie.mp4', 'video/mp4', 42 * 1024 * 1024);
+    mockedUseAuth.mockReturnValue({
+      user: { id: '1', email: 'test@test.com', displayName: null, profileImageUrl: null, isActive: true, isAdmin: false },
+      isLoading: false,
+      isAuthenticated: true,
+      providers: [],
+      login: vi.fn(),
+      logout: vi.fn(),
+      refreshUser: vi.fn(),
+    });
+    mockedGetPendingShare.mockResolvedValue({
+      id: 3,
+      text: null,
+      file,
+      fileName: 'movie.mp4',
+      fileType: 'video/mp4',
+      timestamp: Date.now(),
+    });
+
+    render(<ShareTargetPage />, { wrapper });
+
+    await waitFor(() => {
+      expect(mockedStartUpload).toHaveBeenCalledWith(file);
+    });
+    expect(mockedUploadFile).not.toHaveBeenCalled();
+
+    await waitFor(() => {
+      expect(mockedDeletePendingShare).toHaveBeenCalledWith(3);
     });
   });
 
