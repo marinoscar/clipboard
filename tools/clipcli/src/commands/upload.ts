@@ -1,5 +1,5 @@
 import { Command } from 'commander';
-import { readFileSync, statSync } from 'fs';
+import { closeSync, openSync, readFileSync, readSync, statSync } from 'fs';
 import { basename, extname } from 'path';
 import { OutputManager, info, blank } from '../utils/output.js';
 import {
@@ -57,7 +57,9 @@ function getMimeType(filePath: string): string {
   return MIME_TYPES[ext] || 'application/octet-stream';
 }
 
-const SMALL_FILE_LIMIT = 100 * 1024 * 1024; // 100MB
+// Above this size the file goes direct-to-S3 via multipart instead of being
+// buffered through the API. Matches MULTIPART_THRESHOLD in the web client.
+const SMALL_FILE_LIMIT = 10 * 1024 * 1024; // 10MB
 
 export function registerUploadCommand(program: Command): void {
   program
@@ -91,36 +93,42 @@ export function registerUploadCommand(program: Command): void {
           output.humanOnly(() => info(`Parts: ${totalParts}, Part size: ${formatBytes(partSize)}`));
 
           const parts: { partNumber: number; eTag: string }[] = [];
-          const fileBuffer = readFileSync(filePath);
+          // Read one part at a time so multi-GB files never land in memory whole.
+          const fd = openSync(filePath, 'r');
 
-          for (let i = 1; i <= totalParts; i++) {
-            const start = (i - 1) * partSize;
-            const end = Math.min(start + partSize, fileSize);
-            const partData = fileBuffer.subarray(start, end);
+          try {
+            for (let i = 1; i <= totalParts; i++) {
+              const start = (i - 1) * partSize;
+              const end = Math.min(start + partSize, fileSize);
+              const partData = Buffer.allocUnsafe(end - start);
+              readSync(fd, partData, 0, partData.length, start);
 
-            output.humanOnly(() => {
-              process.stderr.write(`\r  Part ${i}/${totalParts} (${formatBytes(partData.length)})...`);
-            });
+              output.humanOnly(() => {
+                process.stderr.write(`\r  Part ${i}/${totalParts} (${formatBytes(partData.length)})...`);
+              });
 
-            // Get presigned URL for this part
-            const uploadUrl = await getPartUploadUrl(itemId, i);
+              // Get presigned URL for this part
+              const uploadUrl = await getPartUploadUrl(itemId, i);
 
-            // Upload part directly to S3
-            const uploadRes = await fetch(uploadUrl, {
-              method: 'PUT',
-              body: partData,
-              headers: { 'Content-Length': String(partData.length) },
-            });
+              // Upload part directly to S3
+              const uploadRes = await fetch(uploadUrl, {
+                method: 'PUT',
+                body: partData,
+                headers: { 'Content-Length': String(partData.length) },
+              });
 
-            if (!uploadRes.ok) {
-              throw new Error(`Failed to upload part ${i}: ${uploadRes.status}`);
+              if (!uploadRes.ok) {
+                throw new Error(`Failed to upload part ${i}: ${uploadRes.status}`);
+              }
+
+              const eTag = uploadRes.headers.get('etag') || '';
+
+              // Record the part with the API
+              await recordUploadPart(itemId, i, eTag, partData.length);
+              parts.push({ partNumber: i, eTag });
             }
-
-            const eTag = uploadRes.headers.get('etag') || '';
-
-            // Record the part with the API
-            await recordUploadPart(itemId, i, eTag, partData.length);
-            parts.push({ partNumber: i, eTag });
+          } finally {
+            closeSync(fd);
           }
 
           output.humanOnly(() => {
